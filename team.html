@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>來杯成員管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* 成員管理：家人登入後申請，老闆娘同意後才能用後台和成本計算機 */
+:root{--bg:#FBF8F1;--surface:#FFFFFF;--ink:#2B2723;--muted:#7A7068;--line:#E8E1D6;--sea:#2F7A86;--sand:#FAF2CB;--good:#3E8A5B;--bad:#C2543F;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#171513;--surface:#211E1B;--ink:#F0EBE3;--muted:#ADA398;--line:#38332D;--sea:#6CC3CF;--sand:#3A3624;--good:#6CC48C;--bad:#EE8A75;color-scheme:dark}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6}
+.wrap{max-width:620px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 60px}
+small.k{display:block;color:var(--sea);font-weight:700;letter-spacing:.12em;font-size:12px}
+h1{margin:2px 0 4px;font-size:26px}
+h2{font-size:18px;margin:22px 0 8px}
+p.sub{color:var(--muted);margin:0 0 16px}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-weight:700;background:var(--sea);color:var(--surface)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:none;color:var(--bad);border:1px solid var(--line);padding:6px 12px;font-size:14px}
+.btn.danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn.ok{background:var(--good);padding:6px 14px;font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px}
+.card p{margin:0}
+.who{font-size:12px;color:var(--muted);text-align:right}
+.who button{border:0;background:none;color:var(--sea);text-decoration:underline;padding:0 4px;font-size:12px}
+.list{display:grid;gap:8px}
+.person{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.person .info{flex:1;min-width:0}
+.person .info b{display:block;overflow-wrap:anywhere}
+.person .info span{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.empty{color:var(--muted);text-align:center;padding:16px;border:1px dashed var(--line);border-radius:12px}
+.status{background:var(--sand);border-radius:10px;padding:10px 12px}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{color:var(--sea);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <small class="k">來杯！・LAI BEI</small>
+  <h1>成員管理</h1>
+  <p class="sub">家人用自己的 Google 帳號登入、按「申請使用」，老闆娘同意後，就能用後台和成本計算機。</p>
+
+  <div id="login" class="card">
+    <p id="login-msg">請先用 Google 登入。</p>
+    <button class="btn" id="signin">用 Google 登入</button>
+  </div>
+
+  <div id="main" hidden>
+    <div class="who" id="who"></div>
+
+    <!-- 還沒被同意的人 -->
+    <div id="v-guest" class="card" hidden>
+      <p id="g-text"></p>
+      <button class="btn" id="g-req">申請使用</button>
+      <div class="status" id="g-status" hidden></div>
+    </div>
+
+    <!-- 已經是成員 -->
+    <div id="v-member" class="card" hidden>
+      <p>✅ 你已經可以使用了：</p>
+      <div class="links"><a href="./#kitchen">👩‍🍳 老闆娘後台</a><a href="cost.html">🧮 成本計算機</a></div>
+    </div>
+
+    <!-- 老闆娘 -->
+    <div id="v-owner" hidden>
+      <h2>🙋 申請中</h2>
+      <div class="list" id="reqs"><div class="empty">讀取中…</div></div>
+      <h2>👥 已同意的成員</h2>
+      <div class="list" id="staff"><div class="empty">讀取中…</div></div>
+      <h2>🔗 給家人的網址</h2>
+      <div class="card"><p>把這個網址傳給家人，請他登入後按「申請使用」：</p><p><b id="myurl" style="overflow-wrap:anywhere"></b></p>
+        <button class="btn ghost" id="copy">複製網址</button></div>
+      <div class="links" style="margin-top:14px"><a href="./#kitchen">👩‍🍳 後台</a><a href="cost.html">🧮 成本計算機</a></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+const SDK="https://www.gstatic.com/firebasejs/10.12.2/";
+const [app,fs,au]=await Promise.all([import(SDK+"firebase-app.js"),import(SDK+"firebase-firestore.js"),import(SDK+"firebase-auth.js")]);
+const fapp=app.initializeApp(firebaseConfig);const fdb=fs.getFirestore(fapp);const auth=au.getAuth(fapp);
+const $=s=>document.querySelector(s);
+function el(t,a={},...k){const e=document.createElement(t);for(const[x,v]of Object.entries(a)){if(x==="class")e.className=v;else if(x.startsWith("on"))e.addEventListener(x.slice(2),v);else e.setAttribute(x,v)}k.flat().forEach(c=>{if(c!=null&&c!=="")e.append(c)});return e}
+const fmt=t=>t?new Date(t).toLocaleString("zh-TW",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"";
+let unsubs=[];
+$("#myurl").textContent=location.href.split("#")[0];
+$("#copy").onclick=async()=>{try{await navigator.clipboard.writeText($("#myurl").textContent);$("#copy").textContent="已複製 ✅"}catch(e){const r=document.createRange();r.selectNodeContents($("#myurl"));getSelection().removeAllRanges();getSelection().addRange(r);$("#copy").textContent="已選取，請按複製"}};
+$("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){$("#login-msg").textContent="登入沒有成功："+(e.code||"請再試一次")}};
+
+function twoStep(btn,label,sureLabel,fn){btn.onclick=()=>{if(btn.classList.contains("sure"))fn();else{btn.classList.add("sure");btn.textContent=sureLabel;setTimeout(()=>{btn.classList.remove("sure");btn.textContent=label},4000)}}}
+
+/* 老闆娘：看申請、同意、移除 */
+function ownerView(){
+  $("#v-owner").hidden=false;
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,"accessRequests"),s=>{
+    const box=$("#reqs");box.replaceChildren();
+    if(s.empty){box.append(el("div",{class:"empty"},"目前沒有人申請。"));return}
+    s.forEach(d=>{const r=d.data();
+      const ok=el("button",{class:"btn ok"},"同意");
+      ok.onclick=async()=>{ok.disabled=true;try{await fs.setDoc(fs.doc(fdb,"staff",d.id),{email:r.email||"",name:r.name||"",approvedAt:Date.now()});await fs.deleteDoc(fs.doc(fdb,"accessRequests",d.id))}catch(e){ok.disabled=false;ok.textContent="沒成功，再按一次"}};
+      const no=el("button",{class:"btn danger"},"拒絕");twoStep(no,"拒絕","確定拒絕？",()=>fs.deleteDoc(fs.doc(fdb,"accessRequests",d.id)));
+      box.append(el("div",{class:"person"},el("div",{class:"info"},el("b",{},r.name||"（沒有名字）"),el("span",{},(r.email||"")+"・"+fmt(r.at)+" 申請")),ok,no))});
+  },e=>console.error(e)));
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,"staff"),s=>{
+    const box=$("#staff");box.replaceChildren();
+    if(s.empty){box.append(el("div",{class:"empty"},"還沒有其他成員。"));return}
+    s.forEach(d=>{const r=d.data();const rm=el("button",{class:"btn danger"},"移除");twoStep(rm,"移除","確定移除？",()=>fs.deleteDoc(fs.doc(fdb,"staff",d.id)));
+      box.append(el("div",{class:"person"},el("div",{class:"info"},el("b",{},r.name||"（沒有名字）"),el("span",{},(r.email||"")+"・"+fmt(r.approvedAt)+" 同意")),rm))});
+  },e=>console.error(e)));
+}
+
+/* 其他人：看自己是不是成員、送出申請 */
+async function guestView(u){
+  const mine=fs.doc(fdb,"staff",u.uid);
+  unsubs.push(fs.onSnapshot(mine,s=>{
+    if(s.exists()){$("#v-guest").hidden=true;$("#v-member").hidden=false;return}
+    $("#v-member").hidden=true;$("#v-guest").hidden=false;
+    $("#g-text").textContent="你好 "+(u.displayName||"")+"！你的帳號 "+u.email+" 還沒有使用權限。按下面的按鈕送出申請，老闆娘同意後就能使用。";
+  },()=>{}));
+  const req=fs.doc(fdb,"accessRequests",u.uid);
+  unsubs.push(fs.onSnapshot(req,s=>{const st=$("#g-status");if(s.exists()){st.hidden=false;st.textContent="✅ 已經送出申請，請等老闆娘同意（同意後這個畫面會自動更新）。";$("#g-req").hidden=true}else{st.hidden=true;$("#g-req").hidden=false}},()=>{}));
+  $("#g-req").onclick=async()=>{$("#g-req").disabled=true;try{await fs.setDoc(req,{email:u.email||"",name:u.displayName||"",at:Date.now()})}catch(e){$("#g-req").disabled=false;$("#g-status").hidden=false;$("#g-status").textContent="申請沒有送出，請檢查網路再試一次。"}};
+}
+
+au.onAuthStateChanged(auth,async u=>{
+  unsubs.forEach(f=>f());unsubs=[];
+  ["#v-guest","#v-member","#v-owner"].forEach(s=>$(s).hidden=true);
+  if(!u){$("#login").hidden=false;$("#main").hidden=true;return}
+  $("#login").hidden=true;$("#main").hidden=false;
+  $("#who").replaceChildren("登入：",u.email||"",el("button",{onclick:()=>au.signOut(auth)},"登出"));
+  /* 只有老闆娘能讀取申請清單；讀得到就是老闆娘 */
+  let isOwner=false;try{await fs.getDocs(fs.query(fs.collection(fdb,"accessRequests"),fs.limit(1)));isOwner=true}catch(e){}
+  if(isOwner)ownerView();else guestView(u);
+});
+</script>
+</body>
+</html>
