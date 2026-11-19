@@ -36,7 +36,6 @@ const MENU = [
     {id:"m1",zh:"奶茶／奶綠／烏龍奶",en:"Milk Tea",o:[M("奶茶","Black milk tea",60),M("奶綠","Green milk tea",60),M("烏龍奶","Oolong milk tea",60)],t:"both",s:"min3",top:true},
     {id:"m2",zh:"珍珠奶茶",en:"Bubble Milk Tea",price:65,t:"both",s:"min3",top:true},
     {id:"m3",zh:"泰式奶茶",en:"Thai Milk Tea",price:70,t:"both",s:"min3",top:true,pop:true},
-    {id:"m4",zh:"抹茶奶茶",en:"Matcha Milk Tea",price:70,t:"both",s:"min3",top:true},
     {id:"m5",zh:"濃香可可",en:"Rich Cocoa",price:70,t:"both",s:"min3",top:true},
     {id:"m6",zh:"黑糖鮮奶",en:"Brown Sugar Fresh Milk",price:70,t:"both",s:null,top:true},
     {id:"m7",zh:"黑糖珍珠鮮奶",en:"Brown Sugar Boba Fresh Milk",price:75,t:"both",s:null,top:true},
@@ -69,7 +68,7 @@ const MENU = [
 /* 2026-11-19 Jenny：飲料一律冷飲（只有黑糖薑母茶、桂圓紅棗茶是熱的）；甜度照店裡的分法 */
 const COLD = ["ice","less","light","none"];
 const ICE = {cold:COLD, hot:["hot"], both:COLD};
-/* 2026-11-19 Jenny：拾草漢方甜度固定，只有青草茶能選無糖／微糖；金剛洛神花茶固定甜度；林投汁、日式抹茶咖啡、手工起司棒拿掉 */
+/* 2026-11-19 Jenny：拾草漢方甜度固定，只有青草茶能選無糖／微糖；金剛洛神花茶固定甜度；林投汁、日式抹茶咖啡、手工起司棒拿掉；抹茶系列（抹茶奶茶）也拿掉 */
 const SUGAR = {full:["s0","s1","s3","s5","s10"], min3:["s3","s5","s7","s10"], grass:["s0","sl"]};
 /* 這些甜度不預設，客人一定要自己選（青草茶：無糖／微糖） */
 const SUGAR_PICK = ["grass"];
