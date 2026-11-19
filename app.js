@@ -152,7 +152,7 @@ function startKitchen(){
   const q=F.query(F.collection(fdb,"orders"),F.where("createdAt",">=",startOfToday()-6*3600e3));
   kUnsub=F.onSnapshot(q,s=>{allOrders={};s.forEach(d=>allOrders[d.id]=d.data());adminOK=true;renderKitchen()},e=>{
     console.error(e);kUnsub=null;
-    $("#orders").replaceChildren(el("div",{class:"empty"},e.code==="permission-denied"?"這個 Google 帳號沒有後台權限。請登出，改用店裡設定的那個帳號。":"暫時讀不到訂單，請檢查網路後重新整理。"));
+    $("#orders").replaceChildren(e.code==="permission-denied"?el("div",{class:"empty"},"這個 Google 帳號還沒有後台權限。",el("a",{href:"team.html",style:"color:var(--sea);font-weight:700"},"按這裡申請使用"),"，老闆娘同意後就能用。"):el("div",{class:"empty"},"暫時讀不到訂單，請檢查網路後重新整理。"));
   });
 }
 document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{kFilter=b.dataset.f;document.querySelectorAll("[data-f]").forEach(x=>x.setAttribute("aria-pressed",x===b));renderKitchen()});
