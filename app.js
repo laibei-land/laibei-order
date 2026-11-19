@@ -25,7 +25,7 @@ function summary(l,lg){const i=ITEM[l.id],p=[];if(i&&i.o)p.push(i.o[l.o||0][lg])
 const lineKey = l => [l.id,l.o??"",l.ice||"",l.sugar||"",(l.tops||[]).slice().sort().join("+")].join("|");
 function priceText(i){if(!i.o)return money(i.price);const ps=i.o.map(o=>o.price);if(i.o.every(o=>["M","L"].includes(o.zh)))return i.o.map(o=>o.zh+" "+money(o.price)).join("　");return Math.min(...ps)===Math.max(...ps)?money(ps[0]):money(Math.min(...ps))+" "+L().from}
 /* 後台用菜單價格重算，避免有人改價格 */
-const realTotal = o => (o.items||[]).reduce((a,l)=>a+unitPrice(l)*(l.q||0),0);
+const realTotal = o => (o.items||[]).reduce((a,l)=>a+(ITEM[l.id]?unitPrice(l):(Number(l.price)||0))*(l.q||0),0);
 
 /* ---------- 菜單畫面 ---------- */
 function setLang(l){lang=l;store.set("lang",l);document.documentElement.lang=l==="zh"?"zh-Hant":"en";
@@ -180,7 +180,7 @@ function renderKitchen(){
     box.append(el("div",{class:"order "+o.status},
       el("div",{class:"head"},o.num?el("span",{class:"bigcode"},el("small",{},"取餐號碼"),String(o.num)):el("span",{class:"bigcode"},el("small",{},"訂單代碼（客人報給你）"),o.code),el("span",{class:"chip "+o.status},o.status==="new"?"等付款":T.zh.st[o.status])),
       el("div",{class:"meta num"},(o.num?"代碼 "+o.code+"・":"")+t.toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"（"+mins+" 分鐘前）"+(o.lang==="en"?"・外國客人":"")),
-      el("ul",{},...(o.items||[]).map(i=>{const s=summary(i,"zh");return el("li",{},(ITEM[i.id]?.zh||"（菜單沒有這樣）")+" × "+i.q,s?el("small",{}," ｜"+s):"")})),
+      el("ul",{},...(o.items||[]).map(i=>{const s=summary(i,"zh");return el("li",{},(ITEM[i.id]?.zh||"（已下架的品項）")+" × "+i.q,s?el("small",{}," ｜"+s):"")})),
       o.note?el("div",{class:"note"},"備註："+o.note):"",
       el("div",{class:"meta num",style:"margin-top:6px"},"合計 "+money(real),real!==o.total?el("span",{class:"mismatch"},"（客人畫面顯示 "+money(o.total)+"，請以這裡為準）"):""),acts))});
 }
