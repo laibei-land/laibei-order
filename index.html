@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>來杯！線上點餐</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+.login{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px 16px;text-align:center;display:grid;gap:12px;justify-items:center}
+.login p{margin:0;color:var(--muted)}
+.who{font-size:12px;color:var(--muted);text-align:right;margin-bottom:8px}
+.who button{border:0;background:none;color:var(--sea);text-decoration:underline;padding:0 4px;font-size:12px}
+.mismatch{color:var(--pink);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="brand"><small id="t-eyebrow">綠島・GREEN ISLAND</small><h1>來杯！</h1></div>
+    <div class="tools">
+      <button class="pill" id="lang-zh" aria-pressed="true">中文</button>
+      <button class="pill" id="lang-en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+  <div class="demo" id="demo-note" hidden></div>
+
+  <main id="view-menu">
+    <nav class="cats" id="cats"></nav>
+    <div id="menu"></div>
+    <div id="my-orders"></div>
+  </main>
+
+  <main id="view-kitchen" hidden>
+    <div id="k-login" class="login" hidden>
+      <b style="font-size:18px">老闆娘後台</b>
+      <p id="k-login-msg">請用店裡的 Google 帳號登入</p>
+      <button class="primary" id="k-signin" style="max-width:280px">用 Google 登入</button>
+    </div>
+    <div id="k-board" hidden>
+      <div class="who" id="k-who"></div>
+      <div class="stats">
+        <div class="stat"><b id="s-new">0</b><span>等付款</span></div>
+        <div class="stat"><b id="s-cook">0</b><span>製作中</span></div>
+        <div class="stat"><b id="s-rev">$0</b><span>今天營業額</span></div>
+      </div>
+      <div class="filter">
+        <button class="pill" data-f="open" aria-pressed="true">還沒完成</button>
+        <button class="pill" data-f="done" aria-pressed="false">已完成</button>
+      </div>
+      <div id="orders"><div class="empty">正在讀取訂單…</div></div>
+    </div>
+  </main>
+</div>
+
+<div class="bar" id="bar" hidden><button id="open-cart"><span><span class="count num" id="bar-count">0</span><span id="t-viewcart">查看購物車</span></span><span class="num" id="bar-total">$0</span></button></div>
+<div class="sheet" id="sheet" hidden><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
+
+<script src="menu.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
