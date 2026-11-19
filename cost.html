@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>來杯成本計算機</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700&display=swap">
+<style>
+/* 來杯成本計算機（公開網址、Google 登入、只有允許的 Gmail 能用）；資料存在 Firebase 的 costIngredients／costProducts */
+:root{
+  --bg:#FBF8F1; --surface:#FFFFFF; --ink:#2B2723; --muted:#7A7068; --line:#E8E1D6;
+  --sea:#2F7A86; --sea-soft:#E3F0F1; --sand:#FAF2CB; --pink:#D9667F;
+  --good:#3E8A5B; --ok:#C98A1B; --bad:#C2543F;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --num:"Outfit","Noto Sans TC",system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#171513; --surface:#211E1B; --ink:#F0EBE3; --muted:#ADA398; --line:#38332D;
+  --sea:#6CC3CF; --sea-soft:#1F3236; --sand:#3A3624; --pink:#F08CA2;
+  --good:#6CC48C; --ok:#E6B04F; --bad:#EE8A75; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 80px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+header small{display:block;color:var(--sea);font-weight:700;letter-spacing:.12em;font-size:12px}
+header h1{margin:2px 0 4px;font-size:26px;font-weight:900}
+header p{margin:0 0 14px;color:var(--muted)}
+.who{font-size:12px;color:var(--muted);text-align:right;margin:-6px 0 10px}
+.who button{border:0;background:none;color:var(--sea);text-decoration:underline;padding:0 4px;font-size:12px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--sea-soft);border-radius:12px;padding:4px;margin-bottom:14px}
+.tabs a{text-align:center;padding:9px;border-radius:9px;font-weight:700;color:var(--sea);text-decoration:none}
+.tabs a[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.bar .grow{flex:1;min-width:0;color:var(--muted);font-size:13px}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;background:var(--sea);color:var(--surface)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:none;color:var(--bad);border:1px solid var(--line)}
+.btn.danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+.msg{background:var(--sand);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.login{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px 16px;text-align:center;display:grid;gap:12px;justify-items:center}
+.login p{margin:0;color:var(--muted)}
+.plist{display:grid;gap:8px}
+.pcard{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;padding:12px 14px;text-align:left;width:100%}
+.pcard.good{border-left-color:var(--good)}.pcard.ok{border-left-color:var(--ok)}.pcard.bad{border-left-color:var(--bad)}
+.pcard .n{font-weight:700;font-size:16px;min-width:0}
+.pcard .d{color:var(--muted);font-size:13px;min-width:0}
+.pcard .r{grid-column:2;grid-row:1 / span 2;text-align:right}
+.pct{font-family:var(--num);font-weight:700;font-size:22px;line-height:1}
+.good-t{color:var(--good)}.ok-t{color:var(--ok)}.bad-t{color:var(--bad)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 0 0}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;background:currentColor}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px;white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.04em}
+td input,td select{width:100%;min-width:60px;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 6px}
+td input:hover,td input:focus{border-color:var(--line);background:var(--bg)}
+td.uc{font-family:var(--num);color:var(--sea);font-weight:600}
+td .note{color:var(--muted);font-size:12px;white-space:normal}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(20,16,12,.45);display:flex;align-items:flex-end;justify-content:center}
+.panel{background:var(--bg);width:100%;max-width:760px;max-height:92%;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.panel h2{margin:0 0 12px;font-size:20px}
+.row2{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+label.f input{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 10px;color:var(--ink);font-size:15px;min-width:0;width:100%}
+.items{display:grid;gap:6px}
+.irow,.ihead{display:grid;grid-template-columns:minmax(0,1fr) 84px 64px 28px;gap:6px;align-items:center}
+.irow{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+.ihead{font-size:12px;color:var(--muted);padding:0 8px;margin-top:14px}
+.irow select,.irow input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px;min-width:0;width:100%;font-size:14px}
+.irow .c{font-family:var(--num);text-align:right;font-size:14px}
+.irow .x{border:0;background:none;color:var(--muted);font-size:18px;padding:0}
+.addrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.sum{margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sum div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.sum b{display:block;font-family:var(--num);font-size:22px}
+.sum span{font-size:12px;color:var(--muted)}
+.suggest{margin-top:12px;background:var(--sand);border-radius:12px;padding:12px}
+.suggest .t{font-weight:700;margin-bottom:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:14px}
+.chips button[aria-pressed="true"]{background:var(--sea);border-color:var(--sea);color:var(--surface);font-weight:700}
+.suggest .p{margin-top:8px;font-size:15px}
+.suggest .p b{font-family:var(--num);font-size:20px}
+.foot{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.foot .sp{flex:1}
+.warn{color:var(--bad);font-size:13px;margin-top:6px}
+.empty{text-align:center;color:var(--muted);padding:30px 10px;background:var(--surface);border:1px dashed var(--line);border-radius:12px}
+@media (max-width:480px){.sum b{font-size:18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <small>來杯！・LAI BEI</small>
+    <h1>成本計算機</h1>
+    <p>輸入原料進貨價和每杯用量，自動算出一杯成本、每杯賺多少、毛利率和建議售價。</p>
+  </header>
+  <div class="msg" id="msg" hidden></div>
+
+  <div id="login" class="login">
+    <b style="font-size:18px">請先登入</b>
+    <p id="login-msg">成本是店裡的資料，只有允許的 Google 帳號能看。</p>
+    <button class="btn" id="signin" style="max-width:280px;width:100%">用 Google 登入</button>
+  </div>
+
+  <div id="app" hidden>
+    <div class="who" id="who"></div>
+    <nav class="tabs">
+      <a href="#products" id="t-products" aria-current="page">🥤 產品</a>
+      <a href="#ingredients" id="t-ingredients">📦 原料庫</a>
+    </nav>
+    <main id="v-products">
+      <div class="bar"><span class="grow" id="p-count">讀取中…</span><button class="btn" id="new-p">＋ 新增產品</button></div>
+      <div class="plist" id="plist"><div class="empty">正在讀取產品…</div></div>
+      <div class="legend"><span class="good-t">毛利率 70% 以上</span><span class="ok-t">50～70%</span><span class="bad-t">50% 以下</span></div>
+    </main>
+    <main id="v-ingredients" hidden>
+      <div class="bar"><span class="grow">改進貨價或進貨量，用到這個原料的產品成本會一起更新。</span><button class="btn" id="new-i">＋ 新增原料</button></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>原料</th><th>進貨價（元）</th><th>進貨量</th><th>單位</th><th>每單位成本</th><th></th></tr></thead>
+        <tbody id="ilist"><tr><td colspan="6" class="empty">正在讀取原料…</td></tr></tbody>
+      </table></div>
+    </main>
+  </div>
+</div>
+<div class="sheet" id="sheet" hidden><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+const SDK="https://www.gstatic.com/firebasejs/10.12.2/";
+const [app,fs,au]=await Promise.all([import(SDK+"firebase-app.js"),import(SDK+"firebase-firestore.js"),import(SDK+"firebase-auth.js")]);
+const fapp=app.initializeApp(firebaseConfig);const fdb=fs.getFirestore(fapp);const auth=au.getAuth(fapp);
+const ING="costIngredients",PRO="costProducts";
+const $=s=>document.querySelector(s);
+const UNITS=["g","ml","個","張","支","片","包"];
+const PACK=["cup","lid","straw","bag"];
+let ings={},prods={},target=0.7,unsubs=[];
+const money=n=>"$"+(Math.round(n*100)/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0=n=>"$"+Math.round(n).toLocaleString("en-US");
+const uc=i=>i&&i.qty>0?i.price/i.qty:NaN;
+function el(t,a={},...k){const e=document.createElement(t);for(const[x,v]of Object.entries(a)){if(x==="class")e.className=v;else if(x.startsWith("on"))e.addEventListener(x.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(x,v===true?"":v)}k.flat().forEach(c=>{if(c!=null&&c!=="")e.append(c)});return e}
+function calc(p){let cost=0,missing=[];(p.items||[]).forEach(it=>{const i=ings[it.ing];const u=uc(i);if(!i||isNaN(u))missing.push(it.ing);else cost+=u*(Number(it.amt)||0)});const price=Number(p.price)||0;const profit=price-cost;return{cost,profit,margin:price>0?profit/price:0,missing}}
+const level=m=>m>=0.7?"good":m>=0.5?"ok":"bad";
+const suggestPrice=(cost,m)=>Math.ceil(cost/(1-m)/5)*5;
+const sayMsg=t=>{const m=$("#msg");m.textContent=t;m.hidden=!t};
+const ref=(c,id)=>fs.doc(fdb,c,id);
+const save=(c,id,d)=>fs.setDoc(ref(c,id),d).catch(e=>{console.error(e);sayMsg("剛剛的修改沒有存到，請檢查網路再試一次。");throw e});
+const remove=(c,id)=>fs.deleteDoc(ref(c,id)).catch(()=>sayMsg("刪除沒有成功，請再試一次。"));
+const sortIngs=()=>Object.entries(ings).sort((a,b)=>(a[1].sort??999)-(b[1].sort??999)||a[1].name.localeCompare(b[1].name,"zh-Hant"));
+
+function renderProducts(){
+  const list=Object.entries(prods).map(([id,p])=>({id,...p,...calc(p)})).sort((a,b)=>b.margin-a.margin);
+  $("#p-count").textContent=list.length?"共 "+list.length+" 個產品，依毛利率排序":"還沒有產品";
+  const box=$("#plist");box.replaceChildren();
+  if(!list.length){box.append(el("div",{class:"empty"},"還沒有產品。按「＋ 新增產品」，選原料、填用量，就會自動算成本。"));return}
+  list.forEach(p=>{const lv=level(p.margin);
+    box.append(el("button",{class:"pcard "+lv,onclick:()=>openEditor(p.id)},
+      el("div",{class:"n"},p.name||"（沒有名字）"),
+      el("div",{class:"d num"},"售價 "+money0(p.price||0)+"・成本 "+money(p.cost)+"・每杯賺 "+money(p.profit)+(p.missing.length?"・⚠️ 有原料找不到":"")),
+      el("div",{class:"r"},el("div",{class:"pct "+lv+"-t"},Math.round(p.margin*100)+"%"),el("div",{style:"font-size:11px;color:var(--muted)"},"毛利率"))))});
+}
+function renderIngredients(){
+  const tb=$("#ilist");tb.replaceChildren();const list=sortIngs();
+  if(!list.length){tb.append(el("tr",{},el("td",{colspan:"6",class:"empty"},"還沒有原料。按「＋ 新增原料」，輸入買多少錢、買多少量。")));return}
+  list.forEach(([id,i])=>{
+    const upd=(k,v)=>{const d={...ings[id],[k]:v};ings[id]=d;save(ING,id,d);renderIngredients();renderProducts()};
+    const inp=(k,type,w)=>{const x=el("input",{type,value:i[k]??"",style:w?"width:"+w:null,"aria-label":k});x.addEventListener("change",()=>upd(k,type==="number"?Number(x.value):x.value.trim()));return x};
+    const unit=el("select",{"aria-label":"單位"},...UNITS.map(u=>el("option",{value:u,selected:u===i.unit},u)));unit.addEventListener("change",()=>upd("unit",unit.value));
+    const u=uc(i);const used=Object.values(prods).filter(p=>(p.items||[]).some(it=>it.ing===id)).length;
+    const del=el("button",{class:"btn danger",style:"padding:4px 10px;font-size:13px"},"刪除");
+    del.onclick=()=>{if(del.classList.contains("sure")){remove(ING,id)}else{del.classList.add("sure");del.textContent=used?"有 "+used+" 個產品在用，確定？":"確定刪除？";setTimeout(()=>{del.classList.remove("sure");del.textContent="刪除"},4000)}};
+    tb.append(el("tr",{},el("td",{},inp("name","text"),i.note?el("div",{class:"note"},i.note):""),el("td",{},inp("price","number","90px")),el("td",{},inp("qty","number","90px")),el("td",{},unit),
+      el("td",{class:"uc"},isNaN(u)?"—":"$"+(u<0.1?u.toFixed(4):u.toFixed(2))+"／"+i.unit),el("td",{},del)))});
+}
+function newIngredient(){const id="i"+Date.now();const d={name:"新原料",price:0,qty:1,unit:"g",sort:500};ings[id]=d;save(ING,id,d);renderIngredients();
+  setTimeout(()=>{const r=[...document.querySelectorAll("#ilist input[aria-label=name]")].find(x=>x.value==="新原料");r&&(r.focus(),r.select())},50)}
+
+function openEditor(id){
+  const isNew=!id;id=id||"p"+Date.now();
+  const draft=JSON.parse(JSON.stringify(prods[id]||{name:"",price:0,items:[],note:""}));
+  const p=$("#panel");$("#sheet").hidden=false;
+  const close=()=>{$("#sheet").hidden=true};
+  const refresh=()=>{const r=calc(draft);const set=(s,v)=>{const e=p.querySelector(s);if(e)e.textContent=v};
+    set("#s-cost",money(r.cost));set("#s-profit",money(r.profit));
+    const m=p.querySelector("#s-margin");if(m){m.textContent=(draft.price>0?Math.round(r.margin*100):0)+"%";m.className=level(r.margin)+"-t"}
+    p.querySelectorAll(".irow .c").forEach(c=>{const it=draft.items[c.dataset.idx];const i=it&&ings[it.ing];c.textContent=i?money(uc(i)*(it.amt||0)):"—"});
+    const sg=p.querySelector("#s-sug");if(sg){sg.replaceChildren();if(r.cost>0){const sp=suggestPrice(r.cost,target);sg.append("想要毛利率 "+Math.round(target*100)+"%，建議賣 ",el("b",{},money0(sp)),"（每杯賺 "+money(sp-r.cost)+"）");if(draft.price>0)sg.append(el("div",{style:"font-size:13px;color:var(--muted);margin-top:2px"},"現在賣 "+money0(draft.price)+"，毛利率 "+Math.round(r.margin*100)+"%"))}else sg.append("先加原料和用量，這裡會算出建議售價。")}
+    const er=p.querySelector("#s-err");if(er)er.textContent=r.missing.length?"⚠️ 有原料在原料庫裡找不到（可能被刪掉了），這一行沒算進成本。":"";};
+  const draw=()=>{
+    p.replaceChildren(el("h2",{},isNew?"新增產品":"編輯產品"));
+    const name=el("input",{id:"f-name",value:draft.name,placeholder:"例如：珍珠奶茶 L"});name.oninput=()=>draft.name=name.value;
+    const price=el("input",{id:"f-price",type:"number",inputmode:"decimal",value:draft.price||""});price.oninput=()=>{draft.price=Number(price.value)||0;refresh()};
+    p.append(el("div",{class:"row2"},el("label",{class:"f"},"產品名稱",name),el("label",{class:"f"},"售價（元）",price)));
+    p.append(el("div",{class:"ihead"},el("span",{},"原料"),el("span",{},"用量"),el("span",{style:"text-align:right"},"成本"),el("span",{})));
+    const items=el("div",{class:"items",style:"margin-top:4px"});
+    draft.items.forEach((it,idx)=>{
+      const s=el("select",{"aria-label":"原料"},...(ings[it.ing]?[]:[el("option",{value:it.ing,selected:true},"⚠️ 找不到這個原料")]),...sortIngs().map(([iid,i])=>el("option",{value:iid,selected:iid===it.ing},i.name)));
+      s.onchange=()=>{it.ing=s.value;draw()};
+      const a=el("input",{type:"number",inputmode:"decimal",value:it.amt,"aria-label":"用量"});a.oninput=()=>{it.amt=Number(a.value)||0;refresh()};
+      const i=ings[it.ing];
+      items.append(el("div",{class:"irow"},s,el("div",{style:"display:flex;align-items:center"},a,el("span",{style:"font-size:12px;color:var(--muted);margin-left:2px"},i?i.unit:"")),el("span",{class:"c","data-idx":idx}),el("button",{class:"x","aria-label":"移除這個原料",onclick:()=>{draft.items.splice(idx,1);draw()}},"×")));
+    });
+    if(!draft.items.length)items.append(el("div",{class:"empty",style:"padding:16px"},"還沒有原料，按下面的「＋ 加原料」。"));
+    p.append(items);
+    const first=sortIngs()[0];const hasPack=PACK.every(k=>ings[k]);
+    p.append(el("div",{class:"addrow"},
+      el("button",{class:"btn ghost",onclick:()=>{if(!first)return;draft.items.push({ing:first[0],amt:0});draw();setTimeout(()=>{const s=[...p.querySelectorAll(".irow select")].pop();s&&s.focus()},30)}},"＋ 加原料"),
+      hasPack?el("button",{class:"btn ghost",onclick:()=>{PACK.forEach(k=>{if(!draft.items.some(x=>x.ing===k))draft.items.push({ing:k,amt:1})});draw()}},"＋ 加包裝（杯＋封膜＋吸管＋袋子）"):""));
+    p.append(el("div",{class:"sum"},el("div",{},el("span",{},"一杯成本"),el("b",{id:"s-cost"})),el("div",{},el("span",{},"每杯賺"),el("b",{id:"s-profit"})),el("div",{},el("span",{},"毛利率"),el("b",{id:"s-margin"}))));
+    p.append(el("div",{class:"suggest"},el("div",{class:"t"},"💡 想要的毛利率 → 建議售價"),
+      el("div",{class:"chips"},...[0.6,0.65,0.7,0.75,0.8].map(m=>el("button",{"aria-pressed":String(m===target),onclick:()=>{target=m;draw()}},Math.round(m*100)+"%"))),
+      el("div",{class:"p",id:"s-sug"})));
+    const note=el("input",{id:"f-note",value:draft.note||"",placeholder:"例如：L 杯 660ml、配方還要確認"});note.oninput=()=>draft.note=note.value;
+    p.append(el("label",{class:"f",style:"margin-top:12px"},"備註",note));
+    const err=el("div",{class:"warn",id:"s-err"});p.append(err);
+    const del=el("button",{class:"btn danger"},"刪除");
+    del.onclick=()=>{if(del.classList.contains("sure")){remove(PRO,id);close()}else{del.classList.add("sure");del.textContent="確定刪除？";setTimeout(()=>{del.classList.remove("sure");del.textContent="刪除"},4000)}};
+    const sv=el("button",{class:"btn"},"儲存");
+    sv.onclick=async()=>{if(!draft.name.trim()){err.textContent="請先輸入產品名稱。";name.focus();return}
+      draft.items=draft.items.filter(x=>x.ing&&x.amt>0);sv.disabled=true;sv.textContent="儲存中…";
+      try{await save(PRO,id,{...draft,name:draft.name.trim()});close()}catch(e){sv.disabled=false;sv.textContent="儲存";err.textContent="沒有存到，請檢查網路再按一次。"}};
+    p.append(el("div",{class:"foot"},isNew?"":del,el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:close},"取消"),sv));
+    refresh();
+  };
+  draw();
+}
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")$("#sheet").hidden=true});
+function route(){const ing=location.hash==="#ingredients";$("#v-products").hidden=ing;$("#v-ingredients").hidden=!ing;
+  $("#t-products").setAttribute("aria-current",ing?"false":"page");$("#t-ingredients").setAttribute("aria-current",ing?"page":"false")}
+window.addEventListener("hashchange",route);route();
+$("#new-p").onclick=()=>{if(!Object.keys(ings).length){sayMsg("請先到「原料庫」新增原料。");return}openEditor(null)};
+$("#new-i").onclick=newIngredient;
+
+/* 一次匯入很多原料和產品（Claude 幫忙搬資料用；只有允許的帳號寫得進去） */
+window.costImport=async(data)=>{let n=0;for(const[id,d]of Object.entries(data.ingredients||{})){await fs.setDoc(ref(ING,id),d);n++}for(const[id,d]of Object.entries(data.products||{})){await fs.setDoc(ref(PRO,id),d);n++}return n};
+
+$("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){$("#login-msg").textContent="登入沒有成功："+(e.code||"請再試一次")}};
+au.onAuthStateChanged(auth,u=>{
+  unsubs.forEach(f=>f());unsubs=[];ings={};prods={};
+  if(!u){$("#login").hidden=false;$("#app").hidden=true;return}
+  $("#login").hidden=true;$("#app").hidden=false;
+  $("#who").replaceChildren("登入：",u.email||"",el("button",{onclick:()=>au.signOut(auth)},"登出"));
+  const denied=e=>{console.error(e);if(e.code==="permission-denied"){const m=$("#msg");m.replaceChildren("這個 Google 帳號還沒有權限看成本。",el("a",{href:"team.html",style:"color:var(--sea);font-weight:700"},"按這裡申請使用"),"，老闆娘同意後就能用。");m.hidden=false;$("#plist").replaceChildren();$("#ilist").replaceChildren()}else sayMsg("暫時讀不到資料，請檢查網路後重新整理。")};
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,ING),s=>{ings={};s.forEach(d=>ings[d.id]=d.data());sayMsg("");renderIngredients();renderProducts()},denied));
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,PRO),s=>{prods={};s.forEach(d=>prods[d.id]=d.data());renderProducts();renderIngredients()},denied));
+});
+</script>
+</body>
+</html>
