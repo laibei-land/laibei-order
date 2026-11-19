@@ -16,6 +16,30 @@ body{margin:0}
 .who{font-size:12px;color:var(--muted);text-align:right;margin-bottom:8px}
 .who button{border:0;background:none;color:var(--sea);text-decoration:underline;padding:0 4px;font-size:12px}
 .mismatch{color:var(--pink);font-weight:700}
+/* 點餐／小指南切換 */
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--sea-soft);border-radius:12px;padding:4px;margin-bottom:6px}
+.tabs a{display:block;text-align:center;padding:9px 6px;border-radius:9px;font-weight:700;font-size:15px;color:var(--sea);text-decoration:none}
+.tabs a[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* 小指南 */
+.g-title{font-size:22px;margin:14px 0 2px;text-wrap:balance}
+.g-intro{color:var(--muted);margin:0 0 6px}
+.g-h{font-size:18px;margin:22px 0 10px}
+.g-spots{display:grid;gap:10px}
+.g-spot{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.g-name{font-weight:900;font-size:17px}
+.g-sub{color:var(--muted);font-size:13px}
+.g-desc{margin:6px 0 10px;font-size:14px}
+.g-pair{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--sand);border-radius:10px;padding:8px 10px;font-size:14px}
+.g-pair-l{color:var(--muted)}
+.g-order{margin-left:auto;border:0;background:var(--sea);color:var(--surface);border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px}
+.g-food{margin-bottom:12px}
+.g-cat{font-weight:700;color:var(--sea);font-size:14px;margin-bottom:4px}
+.g-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.g-list li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.g-list li.g-me{border-color:var(--pink);background:var(--sand)}
+.g-shop{font-weight:500}
+.g-note{color:var(--muted);font-size:13px}
+.g-tips{margin:0;padding-left:20px;color:var(--ink);font-size:14px;display:grid;gap:4px}
 </style>
 </head>
 <body>
@@ -28,6 +52,12 @@ body{margin:0}
     </div>
   </header>
   <div class="demo" id="demo-note" hidden></div>
+  <nav class="tabs" id="tabs">
+    <a href="#" id="tab-menu" aria-current="page">🥤 點餐</a>
+    <a href="#guide" id="tab-guide">🗺 綠島小指南</a>
+  </nav>
+
+  <main id="view-guide" hidden><div id="guide"></div></main>
 
   <main id="view-menu">
     <nav class="cats" id="cats"></nav>
@@ -61,6 +91,7 @@ body{margin:0}
 <div class="sheet" id="sheet" hidden><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
 
 <script src="menu.js"></script>
+<script src="guide.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
