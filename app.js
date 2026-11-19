@@ -32,6 +32,8 @@ function setLang(l){lang=l;store.set("lang",l);document.documentElement.lang=l==
   $("#lang-zh").setAttribute("aria-pressed",l==="zh");$("#lang-en").setAttribute("aria-pressed",l==="en");
   $("#t-eyebrow").textContent=L().eyebrow;$("#t-viewcart").textContent=L().viewcart;
   if(!configured){$("#demo-note").textContent=L().demo;}
+  $("#tab-menu").textContent=l==="zh"?"🥤 點餐":"🥤 Order";$("#tab-guide").textContent=l==="zh"?"🗺 綠島小指南":"🗺 Island Guide";
+  if(window.renderGuide&&!$("#view-guide").hidden)window.renderGuide(l);
   renderMenu();renderBar();renderMine();if(!$("#sheet").hidden&&sheetMode==="cart")openCart();else closeSheet()}
 const countOf = id => cart.filter(l=>l.id===id).reduce((a,l)=>a+l.q,0);
 function renderMenu(){
@@ -49,7 +51,7 @@ function addLine(l){const k=lineKey(l),ex=cart.find(x=>lineKey(x)===k);if(ex)ex.
 function saveCart(){store.set("cart2",cart);renderMenu();renderBar()}
 const cartCount=()=>cart.reduce((a,l)=>a+l.q,0);
 const cartTotal=()=>cart.reduce((a,l)=>a+unitPrice(l)*l.q,0);
-function renderBar(){const n=cartCount();$("#bar").hidden=n===0||!$("#view-kitchen").hidden;$("#bar-count").textContent=n;$("#bar-total").textContent=money(cartTotal())}
+function renderBar(){const n=cartCount();$("#bar").hidden=n===0||$("#view-menu").hidden;$("#bar-count").textContent=n;$("#bar-total").textContent=money(cartTotal())}
 
 let sheetMode="";
 function openItem(i){
@@ -129,10 +131,15 @@ function renderMine(){
 /* ---------- 老闆娘後台（網址最後加 #kitchen） ---------- */
 let kUnsub=null;
 function onHash(){
-  const k=location.hash==="#kitchen";
-  $("#view-kitchen").hidden=!k;$("#view-menu").hidden=k;renderBar();
+  const k=location.hash==="#kitchen",g=location.hash==="#guide";
+  $("#view-kitchen").hidden=!k;$("#view-guide").hidden=!g;$("#view-menu").hidden=k||g;$("#tabs").hidden=k;
+  $("#tab-menu").setAttribute("aria-current",!k&&!g?"page":"false");$("#tab-guide").setAttribute("aria-current",g?"page":"false");
+  renderBar();
   if(k)startKitchen();
+  if(g&&window.renderGuide){window.renderGuide(lang);window.scrollTo(0,0)}
 }
+/* 小指南的「點這杯」按鈕用 */
+window.openItemById=id=>{const i=ITEM[id];if(!i)return;needsSheet(i)?openItem(i):addLine({id:i.id,o:i.o?0:null,q:1})};
 function startKitchen(){
   if(!F){$("#k-login").hidden=true;$("#k-board").hidden=false;$("#k-who").textContent="示範模式（還沒連上 Firebase）";renderKitchen();return}
   const u=auth.currentUser;
