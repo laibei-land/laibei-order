@@ -32,8 +32,8 @@ function setLang(l){lang=l;store.set("lang",l);document.documentElement.lang=l==
   $("#lang-zh").setAttribute("aria-pressed",l==="zh");$("#lang-en").setAttribute("aria-pressed",l==="en");
   $("#t-eyebrow").textContent=L().eyebrow;$("#t-viewcart").textContent=L().viewcart;
   if(!configured){$("#demo-note").textContent=L().demo;}
-  $("#tab-menu").textContent=l==="zh"?"🥤 點餐":"🥤 Order";$("#tab-guide").textContent=l==="zh"?"🗺 綠島小指南":"🗺 Island Guide";
-  if(window.renderGuide&&!$("#view-guide").hidden)window.renderGuide(l);
+  if($("#tabs")){$("#tab-menu").textContent=l==="zh"?"🥤 點餐":"🥤 Order";$("#tab-guide").textContent=l==="zh"?"🗺 綠島小指南":"🗺 Island Guide";}
+  if(window.renderGuide&&$("#view-guide")&&!$("#view-guide").hidden)window.renderGuide(l);
   renderMenu();renderBar();renderMine();if(!$("#sheet").hidden&&sheetMode==="cart")openCart();else closeSheet()}
 const countOf = id => cart.filter(l=>l.id===id).reduce((a,l)=>a+l.q,0);
 function renderMenu(){
@@ -131,9 +131,11 @@ function renderMine(){
 /* ---------- 老闆娘後台（網址最後加 #kitchen） ---------- */
 let kUnsub=null;
 function onHash(){
-  const k=location.hash==="#kitchen",g=location.hash==="#guide";
-  $("#view-kitchen").hidden=!k;$("#view-guide").hidden=!g;$("#view-menu").hidden=k||g;$("#tabs").hidden=k;
-  $("#tab-menu").setAttribute("aria-current",!k&&!g?"page":"false");$("#tab-guide").setAttribute("aria-current",g?"page":"false");
+  const hasGuide=!!$("#view-guide");
+  const k=location.hash==="#kitchen",g=hasGuide&&location.hash==="#guide";
+  $("#view-kitchen").hidden=!k;$("#view-menu").hidden=k||g;
+  if(hasGuide){$("#view-guide").hidden=!g;$("#tabs").hidden=k;
+    $("#tab-menu").setAttribute("aria-current",!k&&!g?"page":"false");$("#tab-guide").setAttribute("aria-current",g?"page":"false");}
   renderBar();
   if(k)startKitchen();
   if(g&&window.renderGuide){window.renderGuide(lang);window.scrollTo(0,0)}
