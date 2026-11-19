@@ -71,6 +71,8 @@ const COLD = ["ice","less","light","none"];
 const ICE = {cold:COLD, hot:["hot"], both:COLD};
 /* 2026-11-19 Jenny：拾草漢方甜度固定，只有青草茶能選無糖／微糖；金剛洛神花茶固定甜度；林投汁、日式抹茶咖啡、手工起司棒拿掉 */
 const SUGAR = {full:["s0","s1","s3","s5","s10"], min3:["s3","s5","s7","s10"], grass:["s0","sl"]};
+/* 這些甜度不預設，客人一定要自己選（青草茶：無糖／微糖） */
+const SUGAR_PICK = ["grass"];
 const TOPS = ["pearl","coco","agar"], TOP_PRICE = 5;
 const LBL = {
   ice:{zh:"正常冰",en:"Regular ice"}, less:{zh:"少冰",en:"Less ice"}, light:{zh:"微冰",en:"Light ice"}, none:{zh:"去冰",en:"No ice"}, hot:{zh:"熱",en:"Hot"},
@@ -85,13 +87,13 @@ const T = {
       sentMsg:n=>"請到櫃檯告訴店員訂單代碼「"+n+"」並付款。付款後這裡會顯示你的取餐號碼。",
       ok:"好", mine:"我的訂單", code:"訂單代碼", num:"取餐號碼", st:{new:"請到櫃檯付款",cooking:"製作中",done:"好了，請取餐",cancel:"已取消"}, err:"訂單沒有送出去，請再試一次，或直接跟店員說。",
       demo:"示範模式：這個畫面沒有連上雲端，訂單只會存在這支手機裡。",
-      gSize:"規格", gIce:"冰塊", gSugar:"甜度", gTop:"加料", gTopHint:"每樣 +$5，可以多選", qty:"數量", addN:p=>"加入購物車　"+p, min3:"這杯最低甜度三分", inCart:n=>"已點 "+n, from:"起"},
+      gSize:"規格", gIce:"冰塊", gSugar:"甜度", gTop:"加料", gTopHint:"每樣 +$5，可以多選", qty:"數量", addN:p=>"加入購物車　"+p, min3:"這杯最低甜度三分", inCart:n=>"已點 "+n, from:"起", pickSugar:"請先選甜度"},
   en:{eyebrow:"GREEN ISLAND · TAIWAN", add:"Add", choose:"Choose", viewcart:"View cart", cart:"Your order",
       flow:"After ordering, please pay at the counter. You'll get a pickup number; collect your order when it's called.", note:"Notes (optional)", notePh:"e.g. pack drinks separately", total:"Total", send:"Place order", sending:"Sending…",
       keep:"Keep browsing", empty:"Your cart is empty", popular:"Signature", sent:"Order placed!",
       sentMsg:n=>"Please go to the counter, show order code \""+n+"\" and pay. Your pickup number will appear here after payment.",
       ok:"OK", mine:"My orders", code:"Order code", num:"Pickup number", st:{new:"Please pay at the counter",cooking:"Preparing",done:"Ready, please pick up",cancel:"Cancelled"}, err:"Your order didn't go through. Please try again or tell our staff.",
       demo:"Demo mode: not connected, so orders are saved on this phone only.",
-      gSize:"Option", gIce:"Ice level", gSugar:"Sweetness", gTop:"Toppings", gTopHint:"+$5 each, pick any", qty:"Quantity", addN:p=>"Add to cart · "+p, min3:"Minimum sweetness for this drink is 30%", inCart:n=>n+" in cart", from:"from"}
+      gSize:"Option", gIce:"Ice level", gSugar:"Sweetness", gTop:"Toppings", gTopHint:"+$5 each, pick any", qty:"Quantity", addN:p=>"Add to cart · "+p, min3:"Minimum sweetness for this drink is 30%", inCart:n=>n+" in cart", from:"from", pickSugar:"Please choose sweetness"}
 };
 const ITEM = {}; MENU.forEach(c=>c.items.forEach(i=>ITEM[i.id]=i));
