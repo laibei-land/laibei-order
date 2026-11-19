@@ -4,10 +4,9 @@
 const M = (zh,en,price)=>({zh,en,price});
 const MENU = [
   {id:"herb", zh:"拾草漢方・島嶼敘事", tab:"漢方島嶼", en:"Herbal & Island Stories", items:[
-    {id:"h1",zh:"青草茶",en:"Herbal Grass Tea",dzh:"漢方草本飲品",den:"Traditional herbal drink",price:65,t:"both",s:"full"},
-    {id:"h2",zh:"綠島林投汁",en:"Green Island Screwpine Juice",dzh:"島嶼敘事",den:"An island original",price:65,t:"both",s:"full"},
-    {id:"h3",zh:"島嶼檸檬飲",en:"Island Lemonade",dzh:"島嶼敘事",den:"An island original",price:65,t:"both",s:"full"}]},
-  {id:"luye", zh:"拾茶・鹿野高台 自家茶園", tab:"鹿野茶園", en:"Luye Highland Teas · Our Own Garden", sub:{zh:"皆為 M 杯",en:"All size M"}, items:[
+    {id:"h1",zh:"青草茶",en:"Herbal Grass Tea",dzh:"漢方草本飲品",den:"Traditional herbal drink",price:65,t:"both",s:"grass"},
+    {id:"h3",zh:"島嶼檸檬飲",en:"Island Lemonade",dzh:"島嶼敘事・固定甜度",den:"An island original · pre-sweetened",price:65,t:"both",s:null}]},
+  {id:"luye", zh:"拾茶・鹿野高台 自家茶園", tab:"鹿野茶園", en:"Luye Highland Teas · Our Own Garden", sub:{zh:"皆為中杯（M）",en:"All medium (M)"}, items:[
     {id:"l1",zh:"鹿野金萱茶",en:"Luye Jin Xuan Tea",o:[M("現泡","Fresh-brewed",50),{...M("冷泡","Cold-brewed",60),t:"cold"}],t:"both",s:"full"},
     {id:"l2",zh:"鹿野紅烏龍",en:"Luye Red Oolong",o:[M("現泡","Fresh-brewed",50),{...M("冷泡","Cold-brewed",60),t:"cold"}],t:"both",s:"full"},
     {id:"l3",zh:"鹿野蜜香紅茶",en:"Luye Honey-Scented Black Tea",o:[M("現泡","Fresh-brewed",50),{...M("冷泡","Cold-brewed",60),t:"cold"}],t:"both",s:"full"},
@@ -30,7 +29,7 @@ const MENU = [
     {id:"f4",zh:"蜂蜜檸檬",en:"Honey Lemon",price:65,t:"cold",s:"full",top:true},
     {id:"f5",zh:"夢幻花果茶",en:"Dreamy Fruit & Flower Tea",price:65,t:"both",s:"full",top:true,pop:true},
     {id:"f6",zh:"柚子茶",en:"Yuzu Citron Tea",price:65,t:"both",s:"full",top:true},
-    {id:"f7",zh:"金剛洛神花茶",en:"Roselle Tea",price:65,t:"both",s:"full",top:true},
+    {id:"f7",zh:"金剛洛神花茶",en:"Roselle Tea",dzh:"固定甜度",den:"Pre-sweetened",price:65,t:"both",s:null,top:true},
     {id:"f8",zh:"桂圓紅棗茶",en:"Longan & Red Date Tea",dzh:"熱飲",den:"Hot drink",price:65,t:"hot",s:"full",top:true},
     {id:"f9",zh:"黑糖薑母茶",en:"Brown Sugar Ginger Tea",dzh:"熱飲",den:"Hot drink",price:65,t:"hot",s:"full",top:true}]},
   {id:"milk", zh:"拾奶・濃淡剛好 溫潤入心", tab:"奶茶鮮奶", en:"Milk Teas & Fresh Milk", sub:{zh:"皆為 L 杯・可加料 +5",en:"All size L · toppings +5"}, items:[
@@ -47,9 +46,8 @@ const MENU = [
   {id:"coffee", zh:"經典咖啡", tab:"咖啡", en:"Coffee", items:[
     {id:"c1",zh:"美式咖啡",en:"Americano",o:[M("M","M",45),M("L","L",55)],t:"both",s:"full"},
     {id:"c2",zh:"鮮奶拿鐵",en:"Café Latte",o:[M("M","M",70),M("L","L",85)],t:"both",s:"full"},
-    {id:"c3",zh:"日式抹茶咖啡",en:"Japanese Matcha Coffee",o:[M("M","M",75),M("L","L",90)],t:"both",s:"full"},
     {id:"c4",zh:"鴛鴦咖啡",en:"Yuanyang (Coffee + Milk Tea)",o:[M("M","M",75),M("L","L",90)],t:"both",s:"full"}]},
-  {id:"secret", zh:"隱藏版・古法熬製系列", tab:"隱藏版", en:"Secret Menu · Slow-Simmered", sub:{zh:"M 杯 $85",en:"Size M · $85"}, items:[
+  {id:"secret", zh:"隱藏版・古法熬製系列", tab:"隱藏版", en:"Secret Menu · Slow-Simmered", sub:{zh:"皆為中杯（M）$85",en:"All medium (M) · $85"}, items:[
     {id:"x1",zh:"宮廷桂花烏梅",en:"Imperial Osmanthus Smoked Plum",dzh:"桂花清香、烏梅酸甜，花香回甘，適合餐後享用",den:"Osmanthus aroma, sweet-sour smoked plum. Lovely after a meal.",price:85,t:"both",s:null,pop:true},
     {id:"x2",zh:"冰梅汁",en:"Iced Plum Juice",dzh:"酸甜平衡、冰涼清爽，清新順口",den:"Balanced sweet and sour, light and refreshing",price:85,t:"cold",s:null,pop:true}]},
   {id:"pop", zh:"斑鳩冰品", tab:"冰棒", en:"Banjiu Ice Pops", sub:{zh:"一支 $50",en:"$50 each"}, items:[
@@ -63,7 +61,6 @@ const MENU = [
     {id:"p8",zh:"桂圓糯米",en:"Longan Sticky Rice",price:50},
     {id:"p9",zh:"杏仁蛋黃鹹冰棒",en:"Almond Salted Egg Yolk",price:50}]},
   {id:"snack", zh:"點心・甜品與在地伴手禮", tab:"點心", en:"Snacks, Desserts & Local Gifts", items:[
-    {id:"k1",zh:"手工起司棒",en:"Handmade Cheese Sticks",dzh:"一包",den:"Per pack",price:100,pop:true},
     {id:"k2",zh:"奶酪",en:"Panna Cotta",o:[M("原味","Original",50),M("海草","Seaweed",60)]},
     {id:"k3",zh:"鬆餅",en:"Waffle",o:[M("蜂蜜","Honey",50),M("巧克力","Chocolate",50),M("鮪魚玉米","Tuna & Corn",60)]},
     {id:"k4",zh:"小米甜甜圈",en:"Millet Donut",price:45},
@@ -72,11 +69,12 @@ const MENU = [
 /* 2026-11-19 Jenny：飲料一律冷飲（只有黑糖薑母茶、桂圓紅棗茶是熱的）；甜度照店裡的分法 */
 const COLD = ["ice","less","light","none"];
 const ICE = {cold:COLD, hot:["hot"], both:COLD};
-const SUGAR = {full:["s0","s1","s3","s5","s10"], min3:["s3","s5","s7","s10"]};
+/* 2026-11-19 Jenny：拾草漢方甜度固定，只有青草茶能選無糖／微糖；金剛洛神花茶固定甜度；林投汁、日式抹茶咖啡、手工起司棒拿掉 */
+const SUGAR = {full:["s0","s1","s3","s5","s10"], min3:["s3","s5","s7","s10"], grass:["s0","sl"]};
 const TOPS = ["pearl","coco","agar"], TOP_PRICE = 5;
 const LBL = {
   ice:{zh:"正常冰",en:"Regular ice"}, less:{zh:"少冰",en:"Less ice"}, light:{zh:"微冰",en:"Light ice"}, none:{zh:"去冰",en:"No ice"}, hot:{zh:"熱",en:"Hot"},
-  s10:{zh:"全糖",en:"Full sugar"}, s7:{zh:"少糖",en:"Less sugar (70%)"}, s5:{zh:"半糖（五分）",en:"Half sugar (50%)"}, s3:{zh:"三分糖",en:"30% sugar"}, s1:{zh:"一分糖",en:"10% sugar"}, s0:{zh:"無糖",en:"No sugar"},
+  s10:{zh:"全糖",en:"Full sugar"}, s7:{zh:"少糖",en:"Less sugar (70%)"}, s5:{zh:"半糖（五分）",en:"Half sugar (50%)"}, s3:{zh:"三分糖",en:"30% sugar"}, s1:{zh:"一分糖",en:"10% sugar"}, s0:{zh:"無糖",en:"No sugar"}, sl:{zh:"微糖",en:"Light sugar"},
   pearl:{zh:"珍珠",en:"Tapioca pearls"}, coco:{zh:"椰果",en:"Coconut jelly"}, agar:{zh:"寒天",en:"Agar jelly"}
 };
 const TABLES = ["1","2","3","4","5","6","7","8"];
