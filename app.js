@@ -58,7 +58,8 @@ function openItem(i){
   const temp=()=>(i.o&&i.o[st.o]&&i.o[st.o].t)||i.t;
   const draw=()=>{
     const ices=temp()?ICE[temp()]:null;if(ices&&!ices.includes(st.ice))st.ice=ices[0];if(!ices)st.ice=null;
-    const sugars=i.s?SUGAR[i.s]:null;if(sugars&&!sugars.includes(st.sugar))st.sugar=sugars[sugars.length-1];
+    const mustPick=!!i.s&&typeof SUGAR_PICK!=="undefined"&&SUGAR_PICK.includes(i.s);
+    const sugars=i.s?SUGAR[i.s]:null;if(sugars&&!mustPick&&!sugars.includes(st.sugar))st.sugar=sugars[sugars.length-1];
     const chips=(opts,cur,set,lab)=>el("div",{class:"chips"},...opts.map(v=>el("button",{"aria-pressed":String(cur(v)),onclick:()=>{set(v);draw()}},lab(v))));
     p.replaceChildren(el("h3",{},i[lang]),(i.dzh||i.den)?el("p",{class:"hint"},lang==="zh"?i.dzh:i.den):"");
     if(i.o&&i.o.length>1)p.append(el("div",{class:"group"},el("div",{class:"gl"},L().gSize),chips(i.o.map((_,k)=>k),k=>st.o===k,k=>st.o=k,k=>i.o[k][lang]+"　"+money(i.o[k].price))));
@@ -66,7 +67,9 @@ function openItem(i){
     if(sugars)p.append(el("div",{class:"group"},el("div",{class:"gl"},L().gSugar,i.s==="min3"?el("small",{},L().min3):""),chips(sugars,v=>st.sugar===v,v=>st.sugar=v,v=>LBL[v][lang])));
     if(i.top)p.append(el("div",{class:"group"},el("div",{class:"gl"},L().gTop,el("small",{},L().gTopHint)),chips(TOPS,v=>st.tops.includes(v),v=>{st.tops=st.tops.includes(v)?st.tops.filter(x=>x!==v):[...st.tops,v]},v=>LBL[v][lang])));
     p.append(el("div",{class:"qrow"},el("span",{style:"font-weight:700"},L().qty),el("button",{class:"step",onclick:()=>{st.q=Math.max(1,st.q-1);draw()}},"−"),el("span",{class:"qty"},String(st.q)),el("button",{class:"step",onclick:()=>{st.q=Math.min(20,st.q+1);draw()}},"+")));
-    p.append(el("button",{class:"primary",onclick:()=>{addLine({...st,tops:[...st.tops]});closeSheet()}},L().addN(money(unitPrice(st)*st.q))),el("button",{class:"ghost",onclick:closeSheet},L().keep));
+    const need=mustPick&&!st.sugar;
+    const addBtn=el("button",{class:"primary",onclick:()=>{if(need)return;addLine({...st,tops:[...st.tops]});closeSheet()}},need?L().pickSugar:L().addN(money(unitPrice(st)*st.q)));addBtn.disabled=need;
+    p.append(addBtn,el("button",{class:"ghost",onclick:closeSheet},L().keep));
   };
   draw();
 }
