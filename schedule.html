@@ -101,6 +101,21 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;margin:14px 0 8
 .ck input{width:22px;height:22px;flex:none;accent-color:var(--good)}
 .ck.done span{color:var(--muted);text-decoration:line-through}
 .ckby{font-size:12px;color:var(--muted);margin-top:6px}
+.exps{display:grid;gap:6px}
+.exprow{display:grid;grid-template-columns:minmax(0,1fr) 96px 28px;gap:6px;align-items:center}
+.exprow input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 8px;min-width:0;width:100%;font-size:15px}
+.exprow .x{border:0;background:none;color:var(--muted);font-size:20px;padding:0}
+#moneycard label.f input{background:var(--bg)}
+.msum{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:14px}
+.msum div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.msum span{display:block;font-size:12px;color:var(--muted)}
+.msum b{font-size:19px}
+.mtable{display:grid;margin-top:12px}
+.mh,.mr{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:6px;padding:7px 4px;font-size:14px;text-align:right}
+.mh span:first-child,.mr span:first-child{text-align:left}
+.mh{font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+.mr{border:0;border-bottom:1px solid var(--line);background:none;width:100%}
+.mr.on{background:var(--sea-soft);border-radius:6px}
 .daynav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .daynav input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px}
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(20,16,12,.45);display:flex;align-items:flex-end;justify-content:center}
@@ -356,14 +371,17 @@ function handEditor(id){
   const sales=el("input",{type:"number",inputmode:"numeric",value:d.sales,placeholder:"這段時間賣多少"});sales.oninput=()=>d.sales=sales.value;
   p.append(el("div",{class:"row2"},el("label",{class:"f"},"💰 錢櫃現金（元）",cash),el("label",{class:"f"},"這段營業額（元）",sales)));
   const sres=el("div",{class:"note",hidden:true});
-  const sbtn=el("button",{class:"btn ghost small",type:"button"},"📲 帶入點餐網站算的營業額");
+  const sbtn=el("button",{class:"btn ghost small",type:"button"},"📲 帶入這段的營業額");
   sbtn.onclick=async()=>{
     const seg=sortedShifts().filter(x=>x.who===d.from&&x.start<=d.date&&x.end>=addDays(d.date,-1)).pop();
     const prev=sortedHands().find(x=>x.id!==id&&x.date<d.date);
     const from=seg?seg.start:(prev?prev.date:d.date);
     sbtn.disabled=true;sres.hidden=false;sres.textContent="計算中…";
-    try{const r=await ordersSales(from,d.date);d.sales=String(r.sum);sales.value=r.sum;
-      sres.textContent=md(from)+"～"+md(d.date)+" 點餐網站已付款 "+r.n+" 單，共 "+money(r.sum)+"（只算客人用點餐網站點的單，現場口頭點的要自己加）"}
+    try{const r=await ordersSales(from,d.date);
+      const logged=Object.keys(checks).filter(k=>k>=from&&k<=d.date&&checks[k].revenue!==undefined&&checks[k].revenue!=="");
+      const dsum=logged.reduce((a,k)=>a+(Number(checks[k].revenue)||0),0);
+      const use=logged.length?dsum:r.sum;d.sales=String(use);sales.value=use;
+      sres.textContent=md(from)+"～"+md(d.date)+(logged.length?"：每日記帳 "+logged.length+" 天營收合計 "+money(dsum)+"（已帶入）；":"：")+"點餐網站已付款 "+r.n+" 單，共 "+money(r.sum)+(logged.length?"":"（已帶入；只算用點餐網站點的單，現場口頭點的要自己加）")}
     catch(e){console.error(e);sres.textContent="算不出來（"+(e.code||"錯誤")+"），請自己填。"}
     sbtn.disabled=false};
   p.append(el("div",{},sbtn),sres);
@@ -415,6 +433,53 @@ function renderChecks(){
     if(ck[k+"By"])card.append(el("div",{class:"ckby"},ck[k+"By"]+" 打勾的"));
     box.append(card);
   });
+  box.append(moneyCard(),monthSummary());
+}
+/* ---------- 每日記帳：零用金、營收、支出 ---------- */
+const numv=v=>v===""||v==null?"":Number(v)||0;
+let ckPending=false;
+function moneyCard(){
+  const ck=checks[ckDay]||{};
+  const exps=(ck.expenses||[]).map(x=>({t:x.t||"",amt:x.amt??""}));
+  const card=el("div",{class:"ckcard",id:"moneycard"},el("div",{class:"t"},el("b",{},"💰 今天的錢"),ck.moneyBy?el("span",{class:"prog",style:"font-size:12px;font-weight:500"},ck.moneyBy+" 記的"):""));
+  const petty=el("input",{type:"number",inputmode:"numeric",value:ck.petty??"",placeholder:"例如 2000"});
+  const rev=el("input",{type:"number",inputmode:"numeric",value:ck.revenue??"",placeholder:"今天賣多少"});
+  const sum=el("div",{class:"msum"});
+  const expSum=()=>exps.reduce((a,x)=>a+(Number(x.amt)||0),0);
+  const drawSum=()=>{const r=Number(rev.value)||0,e=expSum();const tiles=[["今天營收",money(r)],["今天支出",money(e)],["今天淨賺",(r-e<0?"-":"")+money(Math.abs(r-e))]];
+    if(petty.value!=="")tiles.push(["關店錢櫃應該有",money((Number(petty.value)||0)+r-e)]);
+    sum.replaceChildren(...tiles.map(([k,v])=>el("div",{},el("span",{},k),el("b",{class:"num"},v))))};
+  const saveMoney=()=>{drawSum();save(CK,ckDay,{petty:numv(petty.value),revenue:numv(rev.value),expenses:exps.filter(x=>String(x.t).trim()||x.amt!=="").slice(0,50).map(x=>({t:String(x.t).trim().slice(0,60),amt:Number(x.amt)||0})),moneyBy:me.name,moneyAt:Date.now()},true).catch(()=>{})};
+  petty.oninput=drawSum;rev.oninput=drawSum;petty.onchange=saveMoney;rev.onchange=saveMoney;
+  card.append(el("div",{class:"row2"},el("label",{class:"f"},"開店零用金（錢櫃放多少零錢）",petty),el("label",{class:"f"},"今天營收",rev)));
+  const rres=el("div",{class:"note",hidden:true,style:"margin-top:6px"});
+  const rbtn=el("button",{class:"btn ghost small",type:"button",style:"margin-top:8px"},"📲 帶入點餐網站今天的營收");
+  rbtn.onclick=async()=>{rbtn.disabled=true;rres.hidden=false;rres.textContent="計算中…";
+    try{const r=await ordersSales(ckDay,ckDay);rev.value=r.sum;saveMoney();rres.textContent="點餐網站 "+md(ckDay)+" 已付款 "+r.n+" 單，共 "+money(r.sum)+"（現場口頭點的要自己加上去）"}
+    catch(e){console.error(e);rres.textContent="算不出來（"+(e.code||"錯誤")+"），請自己填。"}rbtn.disabled=false};
+  card.append(rbtn,rres);
+  const rows=el("div",{class:"exps"});
+  const drawRows=()=>{rows.replaceChildren(...exps.map((x,i)=>{
+    const t=el("input",{value:x.t,placeholder:"買什麼（例如：冰塊、鮮奶）","aria-label":"支出項目"});t.oninput=()=>{x.t=t.value};t.onchange=saveMoney;
+    const a=el("input",{type:"number",inputmode:"numeric",value:x.amt,placeholder:"金額","aria-label":"支出金額"});a.oninput=()=>{x.amt=a.value;drawSum()};a.onchange=saveMoney;
+    return el("div",{class:"exprow"},t,a,el("button",{class:"x",type:"button","aria-label":"刪掉這筆",onclick:()=>{exps.splice(i,1);drawRows();saveMoney()}},"×"))}));
+    if(!exps.length)rows.append(el("div",{class:"ckby",style:"margin:0"},"今天還沒有支出。"))};
+  drawRows();
+  card.append(el("div",{class:"fl",style:"margin-top:14px"},"🧾 今天支出（從零用金拿錢買東西也記這裡）"),rows,
+    el("button",{class:"btn ghost small",type:"button",style:"margin-top:8px",onclick:()=>{exps.push({t:"",amt:""});drawRows();const l=rows.querySelectorAll(".exprow input");if(l.length)l[l.length-2].focus()}},"＋ 加一筆支出"),sum);
+  card.addEventListener("focusout",()=>setTimeout(()=>{const a=document.activeElement;if(ckPending&&!(a&&a.closest&&a.closest("#moneycard"))){ckPending=false;renderChecks()}},300));
+  drawSum();return card;
+}
+function monthSummary(){
+  const ym=ckDay.slice(0,7),m=Number(ym.slice(5,7));
+  const days=Object.keys(checks).filter(k=>k.startsWith(ym)).sort().map(k=>{const c=checks[k];const e=(c.expenses||[]).reduce((a,x)=>a+(Number(x.amt)||0),0);return{k,r:Number(c.revenue)||0,e,has:(c.revenue!==undefined&&c.revenue!=="")||e>0}}).filter(x=>x.has);
+  const card=el("div",{class:"ckcard"},el("div",{class:"t"},el("b",{},"📊 "+m+" 月記帳")));
+  if(!days.length){card.append(el("div",{class:"ckby",style:"margin:0"},"這個月還沒有記營收或支出。"));return card}
+  const R=days.reduce((a,x)=>a+x.r,0),E=days.reduce((a,x)=>a+x.e,0);
+  card.append(el("div",{class:"msum",style:"margin-top:0"},...[["營收合計",money(R)],["支出合計",money(E)],["淨賺",(R-E<0?"-":"")+money(Math.abs(R-E))],["有記的天數",days.length+" 天"]].map(([k,v])=>el("div",{},el("span",{},k),el("b",{class:"num"},v)))));
+  const tb=el("div",{class:"mtable"},el("div",{class:"mh"},el("span",{},"日期"),el("span",{},"營收"),el("span",{},"支出"),el("span",{},"淨賺")));
+  days.slice().reverse().forEach(x=>tb.append(el("button",{class:"mr"+(x.k===ckDay?" on":""),type:"button",onclick:()=>{ckDay=x.k;renderChecks();scrollTo({top:0,behavior:"smooth"})}},el("span",{},mdw(x.k)),el("span",{class:"num"},money(x.r)),el("span",{class:"num"},money(x.e)),el("span",{class:"num"},(x.r-x.e<0?"-":"")+money(Math.abs(x.r-x.e))))));
+  card.append(tb);return card;
 }
 $("#d-pick").onchange=()=>{if($("#d-pick").value){ckDay=$("#d-pick").value;renderChecks()}};
 $("#d-prev").onclick=()=>{ckDay=addDays(ckDay,-1);renderChecks()};
@@ -457,7 +522,7 @@ au.onAuthStateChanged(auth,u=>{
   unsubs.push(fs.onSnapshot(ref(CF,"main"),s=>{const c=s.exists()?s.data():{};cfg={people:c.people&&c.people.length?c.people:DEF.people,openList:c.openList||DEF.openList,closeList:c.closeList||DEF.closeList,lowItems:c.lowItems||DEF.lowItems};renderAll()},denied));
   unsubs.push(fs.onSnapshot(fs.collection(fdb,SH),s=>{shifts={};s.forEach(d=>shifts[d.id]=d.data());sayMsg("");renderAll()},denied));
   unsubs.push(fs.onSnapshot(fs.collection(fdb,HO),s=>{hands={};s.forEach(d=>hands[d.id]=d.data());renderNow();renderHands()},denied));
-  unsubs.push(fs.onSnapshot(fs.collection(fdb,CK),s=>{checks={};s.forEach(d=>checks[d.id]=d.data());renderHands();renderChecks()},denied));
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,CK),s=>{checks={};s.forEach(d=>checks[d.id]=d.data());renderHands();const a=document.activeElement;if(a&&a.closest&&a.closest("#moneycard"))ckPending=true;else renderChecks()},denied));
 });
 </script>
 </body>
