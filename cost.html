@@ -135,6 +135,17 @@ label.f input{border:1px solid var(--line);background:var(--surface);border-radi
 
 <script type="module">
 import { firebaseConfig } from "./firebase-config.js";
+/* Google 不讓 LINE／FB／IG 裡面的瀏覽器登入：LINE 自動跳到手機瀏覽器，其他的顯示教學 */
+const UA=navigator.userAgent;
+const IN_APP=/Line\/|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|Threads/i.test(UA);
+if(/Line\//i.test(UA)&&location.search.indexOf("openExternalBrowser")<0){location.replace(location.pathname+"?openExternalBrowser=1"+location.hash)}
+const loginError=e=>{const c=(e&&e.code)||"";
+  if(c==="auth/popup-blocked")return "登入視窗被擋住了。請允許這個網站跳出視窗，或改用 Safari／Chrome 打開。";
+  if(c==="auth/popup-closed-by-user"||c==="auth/cancelled-popup-request")return "登入視窗被關掉了，請再按一次「用 Google 登入」。";
+  if(c==="auth/network-request-failed")return "網路不穩，請確認有網路再試一次。";
+  if(IN_APP||c==="auth/operation-not-supported-in-this-environment"||c==="auth/web-storage-unsupported")return "這裡沒辦法用 Google 登入。請按右上角「⋯」選「用瀏覽器開啟」，或把網址複製到 Safari／Chrome 打開。";
+  return "登入沒有成功（"+(c||"請再試一次")+"）。請改用 Safari／Chrome 打開這個網址再試一次。"};
+if(IN_APP)document.getElementById("login-msg").textContent="⚠️ 你現在是在 App 裡面（LINE、FB、IG）打開的，Google 不讓這裡登入。請按右上角「⋯」選「用瀏覽器開啟」，或把網址複製到 Safari／Chrome 打開。";
 const SDK="https://www.gstatic.com/firebasejs/10.12.2/";
 const [app,fs,au]=await Promise.all([import(SDK+"firebase-app.js"),import(SDK+"firebase-firestore.js"),import(SDK+"firebase-auth.js")]);
 const fapp=app.initializeApp(firebaseConfig);const fdb=fs.getFirestore(fapp);const auth=au.getAuth(fapp);
@@ -242,7 +253,7 @@ $("#new-i").onclick=newIngredient;
 /* 一次匯入很多原料和產品（Claude 幫忙搬資料用；只有允許的帳號寫得進去） */
 window.costImport=async(data)=>{let n=0;for(const[id,d]of Object.entries(data.ingredients||{})){await fs.setDoc(ref(ING,id),d);n++}for(const[id,d]of Object.entries(data.products||{})){await fs.setDoc(ref(PRO,id),d);n++}return n};
 
-$("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){$("#login-msg").textContent="登入沒有成功："+(e.code||"請再試一次")}};
+$("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){console.error(e);$("#login-msg").textContent=loginError(e)}};
 au.onAuthStateChanged(auth,u=>{
   unsubs.forEach(f=>f());unsubs=[];ings={};prods={};
   if(!u){$("#login").hidden=false;$("#app").hidden=true;return}
