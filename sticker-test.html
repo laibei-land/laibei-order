@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>貼紙機測試</title>
+<style>
+/* 來杯貼紙機 USB 測試頁（2026-11-20）：安卓 Chrome＋OTG 線，網頁直接用 TSPL 指令叫貼紙機印，不靠雲端 */
+:root{--bg:#FBF8F1;--surface:#FFFFFF;--ink:#2B2723;--muted:#7A7068;--line:#E8E1D6;--sea:#2F7A86;--sand:#FAF2CB;--good:#3E8A5B;--bad:#C2543F;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#171513;--surface:#211E1B;--ink:#F0EBE3;--muted:#ADA398;--line:#38332D;--sea:#6CC3CF;--sand:#3A3624;--good:#6CC48C;--bad:#EE8A75;color-scheme:dark}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.6}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 60px;display:grid;gap:14px}
+h1{margin:0;font-size:24px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:10px}
+.card h2{margin:0;font-size:17px}
+.btn{border:0;border-radius:12px;padding:14px 16px;font:inherit;font-weight:700;background:var(--sea);color:var(--surface);cursor:pointer;width:100%}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.45}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+label{display:grid;gap:3px;font-size:13px;color:var(--muted)}
+input,select{font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--surface);color:var(--ink);width:100%;min-width:0}
+.note{background:var(--sand);border-radius:10px;padding:10px 12px;font-size:14px}
+.status{font-weight:700}
+.ok{color:var(--good)}.err{color:var(--bad)}
+canvas{width:100%;max-width:320px;border:1px dashed var(--line);border-radius:8px;background:#fff;justify-self:center}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap;color:var(--muted);max-height:180px;overflow:auto;background:var(--bg);border-radius:8px;padding:8px}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)}
+.chk input{width:20px;height:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🖨 貼紙機測試</h1>
+  <div class="note" id="support">用<b>安卓手機的 Chrome</b> 打開這頁。貼紙機開機、裝好貼紙，用 USB 線（或 OTG 轉接頭）接到手機。</div>
+
+  <div class="card">
+    <h2>① 連接貼紙機</h2>
+    <button class="btn" id="connect">連接貼紙機</button>
+    <div class="status" id="st">還沒連接</div>
+  </div>
+
+  <div class="card">
+    <h2>② 貼紙尺寸</h2>
+    <div class="row">
+      <label>寬（mm）<input id="w" type="number" value="40" min="20" max="60"></label>
+      <label>高（mm）<input id="h" type="number" value="30" min="15" max="100"></label>
+      <label>間距（mm）<input id="gap" type="number" value="2" min="0" max="10"></label>
+    </div>
+    <div class="note" style="font-size:13px">量一下一張貼紙的寬和高；間距是兩張貼紙中間空白的高度（通常 2mm）。</div>
+  </div>
+
+  <div class="card">
+    <h2>③ 試印</h2>
+    <button class="btn" id="p1" disabled>印英文測試（最簡單）</button>
+    <canvas id="cv"></canvas>
+    <button class="btn" id="p2" disabled>印中文杯貼（上面這張）</button>
+    <label class="chk"><input type="checkbox" id="inv">印出來黑白顛倒的話，勾這個再印一次</label>
+    <button class="btn ghost" id="feed" disabled>送出一張空白（對齊用）</button>
+  </div>
+
+  <div class="card">
+    <h2>紀錄（有問題就截圖這裡給 Claude）</h2>
+    <div id="log"></div>
+  </div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const log=m=>{$("#log").textContent=new Date().toLocaleTimeString()+"  "+m+"\n"+$("#log").textContent};
+const setSt=(m,cls)=>{$("#st").textContent=m;$("#st").className="status "+(cls||"")};
+let dev=null,ep=null;
+if(!("usb" in navigator)){$("#support").innerHTML="⚠️ 這個瀏覽器不支援 USB 連線。請用<b>安卓手機的 Chrome</b> 打開這頁（iPhone、iPad 不行）。";$("#connect").disabled=true}
+
+$("#connect").onclick=async()=>{
+  try{
+    dev=await navigator.usb.requestDevice({filters:[]});
+    log("選到："+(dev.productName||"(沒有名字)")+"  廠商ID "+dev.vendorId.toString(16)+"  產品ID "+dev.productId.toString(16));
+    await dev.open();
+    if(dev.configuration===null)await dev.selectConfiguration(1);
+    let found=null;
+    for(const itf of dev.configuration.interfaces){for(const alt of itf.alternates){const out=alt.endpoints.find(e=>e.direction==="out"&&e.type==="bulk");if(out){found={itf:itf.interfaceNumber,alt:alt.alternateSetting,ep:out.endpointNumber,cls:alt.interfaceClass};break}}if(found)break}
+    if(!found)throw new Error("找不到可以送資料的通道");
+    await dev.claimInterface(found.itf);
+    if(found.alt)await dev.selectAlternateInterface(found.itf,found.alt);
+    ep=found.ep;log("連上了：介面 "+found.itf+"（類別 "+found.cls+"）、通道 "+ep);
+    setSt("✅ 已連接："+(dev.productName||"貼紙機"),"ok");
+    ["#p1","#p2","#feed"].forEach(s=>$(s).disabled=false);
+  }catch(e){log("連接失敗："+e.name+" "+e.message);setSt("❌ 連接失敗："+e.message,"err")}
+};
+async function send(parts){
+  if(!dev){setSt("請先連接貼紙機","err");return}
+  const enc=new TextEncoder();let total=0;
+  try{for(const p of parts){const data=typeof p==="string"?enc.encode(p):p;
+      for(let i=0;i<data.length;i+=4096){await dev.transferOut(ep,data.slice(i,i+4096))}total+=data.length}
+    log("送出 "+total+" bytes");setSt("✅ 已送出，看看貼紙機有沒有印","ok")}
+  catch(e){log("送出失敗："+e.name+" "+e.message);setSt("❌ 送出失敗："+e.message,"err")}
+}
+const head=()=>"SIZE "+$("#w").value+" mm,"+$("#h").value+" mm\r\nGAP "+$("#gap").value+" mm,0 mm\r\nDIRECTION 1\r\nDENSITY 10\r\nCLS\r\n";
+$("#p1").onclick=()=>send([head()+'TEXT 16,16,"3",0,1,1,"LAI BEI TEST"\r\nTEXT 16,60,"2",0,1,1,"No.12  Milk Tea L"\r\nTEXT 16,100,"2",0,1,1,"OK!"\r\nPRINT 1,1\r\n']);
+$("#feed").onclick=()=>send(["FORMFEED\r\n"]);
+
+/* 中文用「圖片」印：先在畫面上畫好，再轉成黑白點陣送給貼紙機（BITMAP 指令） */
+const DPMM=8; // 203dpi ≈ 每 mm 8 點
+function draw(){
+  const W=Math.round($("#w").value*DPMM),H=Math.round($("#h").value*DPMM),c=$("#cv");c.width=W;c.height=H;
+  const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,W,H);g.fillStyle="#000";g.textBaseline="top";
+  const F='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+  g.font="900 "+Math.round(H*.26)+"px "+F;g.fillText("12 號",10,8);
+  g.font="700 "+Math.round(H*.13)+"px "+F;g.textAlign="right";g.fillText("1/2",W-10,12);g.textAlign="left";
+  g.font="700 "+Math.round(H*.17)+"px "+F;g.fillText("泰式奶茶 L",10,Math.round(H*.40));
+  g.font="500 "+Math.round(H*.13)+"px "+F;g.fillText("半糖・少冰・+珍珠",10,Math.round(H*.64));
+  g.font="400 "+Math.round(H*.09)+"px "+F;g.fillText("來杯！ 測試貼紙",10,Math.round(H*.84));
+}
+["#w","#h"].forEach(s=>$(s).addEventListener("input",draw));draw();
+$("#p2").onclick=()=>{
+  draw();const c=$("#cv"),W=c.width,H=c.height,bw=Math.ceil(W/8);
+  const px=c.getContext("2d").getImageData(0,0,W,H).data,bits=new Uint8Array(bw*H),inv=$("#inv").checked;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;const dark=(px[i]+px[i+1]+px[i+2])/3<128;
+    /* TSPL BITMAP：一般是 0＝印黑、1＝留白；印出來顛倒就勾選「顛倒」 */
+    const bit=inv?dark:!dark;if(bit)bits[y*bw+(x>>3)]|=(0x80>>(x&7))}
+  send([head()+"BITMAP 0,0,"+bw+","+H+",0,",bits,"\r\nPRINT 1,1\r\n"]);
+};
+</script>
+</body>
+</html>
