@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>圖書室借還書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<style>
+/* 圖書室借還書系統・試做版（2026-11-20）：資料只存在這台電腦的瀏覽器裡，用假資料測試 */
+:root{
+  --bg:#F7F5F0; --surface:#FFFFFF; --ink:#262420; --muted:#76706A; --line:#E6E1D8;
+  --brand:#2E5E8C; --brand-soft:#E4EDF6; --sand:#FAF2CB; --good:#3E8A5B; --good-soft:#E3F2E8;
+  --bad:#C2543F; --bad-soft:#F9E5E0; --warn:#B7791F;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --num:"Outfit","Noto Sans TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#161514; --surface:#201F1D; --ink:#EFEBE4; --muted:#ABA49B; --line:#36332F;
+  --brand:#7FB2E5; --brand-soft:#1F2C3A; --sand:#3A3624; --good:#6CC48C; --good-soft:#1E3326;
+  --bad:#EE8A75; --bad-soft:#3A2420; --warn:#E6B04F; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.top .in{max-width:1040px;margin:0 auto;padding:12px 16px 0;display:grid;gap:10px}
+.title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.title h1{margin:0;font-size:21px;font-weight:900}
+.badge{background:var(--sand);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--ink)}
+.title .sp{flex:1}
+.tabs{display:flex;gap:2px;overflow-x:auto}
+.tabs a{padding:9px 14px;border-bottom:3px solid transparent;color:var(--muted);text-decoration:none;font-weight:700;white-space:nowrap}
+.tabs a[aria-current="page"]{color:var(--brand);border-bottom-color:var(--brand)}
+main{max-width:1040px;margin:0 auto;padding:18px 16px 80px}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;background:var(--brand);color:var(--surface)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.good{background:var(--good)}
+.btn.danger{background:none;color:var(--bad);border:1px solid var(--line)}
+.btn.danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.scan{display:flex;gap:8px;margin-bottom:14px}
+.scan input{flex:1;min-width:0;font-size:20px;padding:14px 16px;border:2px solid var(--brand);border-radius:12px;background:var(--surface)}
+.hint{color:var(--muted);font-size:13px;margin:-6px 0 14px}
+h2{font-size:17px;margin:0 0 10px}
+.empty{color:var(--muted);text-align:center;padding:22px 10px;border:1px dashed var(--line);border-radius:12px}
+.who{display:grid;gap:4px}
+.who .nm{font-size:22px;font-weight:900}
+.who .meta{color:var(--muted);font-size:14px}
+.warnbox{background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:8px 10px;font-weight:700;font-size:14px}
+.okbox{background:var(--good-soft);color:var(--good);border-radius:10px;padding:8px 10px;font-weight:700;font-size:14px}
+.list{display:grid;gap:8px;margin-top:10px}
+.item{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--surface)}
+.item .info{flex:1;min-width:0}
+.item .info b{display:block;overflow-wrap:anywhere}
+.item .info span{color:var(--muted);font-size:13px}
+.item.over{border-color:var(--bad);background:var(--bad-soft)}
+.item.stack{flex-wrap:wrap}
+.item.stack .info{flex:1 1 220px}
+.tag{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700}
+.tag.in{background:var(--good-soft);color:var(--good)}
+.tag.out{background:var(--brand-soft);color:var(--brand)}
+.tag.late{background:var(--bad-soft);color:var(--bad)}
+.foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.foot .sp{flex:1}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.bar input[type=search]{flex:1;min-width:180px;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--surface)}
+.bar select{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:var(--surface)}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px;vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap}
+td.nw{white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat span{display:block;font-size:12px;color:var(--muted)}
+.stat b{font-family:var(--num);font-size:28px}
+.stat.bad b{color:var(--bad)}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(20,16,12,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.panel{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:16px;padding:18px;display:grid;gap:12px}
+.panel h3{margin:0;font-size:19px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+label.f input,label.f textarea,label.f select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 10px;color:var(--ink);font-size:15px;width:100%;min-width:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:2fr 1fr;gap:10px;align-items:end}
+@media (max-width:480px){.row2,.row3{grid-template-columns:1fr}}
+.note{background:var(--sand);border-radius:10px;padding:8px 10px;font-size:13px}
+.err{color:var(--bad);font-size:13px}
+video{width:100%;border-radius:12px;background:#000}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:40;font-weight:700;max-width:90vw;box-shadow:0 4px 18px rgba(0,0,0,.2)}
+.toast.bad{background:var(--bad);color:#fff}
+.toast.good{background:var(--good);color:#fff}
+.chk{width:18px;height:18px}
+#print{display:none}
+@media print{
+  body>*:not(#print){display:none!important}
+  #print{display:block;color:#000;background:#fff}
+  @page{margin:10mm}
+}
+.pcards{display:grid;grid-template-columns:repeat(2,85.6mm);gap:6mm}
+.pcard{width:85.6mm;height:54mm;border:1px solid #999;border-radius:3mm;padding:4mm 5mm;display:flex;flex-direction:column;justify-content:space-between;break-inside:avoid;font-family:var(--font)}
+.pcard .h{font-size:9pt;color:#555;letter-spacing:.1em}
+.pcard .n{font-size:16pt;font-weight:900}
+.pcard svg{width:100%;height:16mm}
+.plabels{display:grid;grid-template-columns:repeat(3,60mm);gap:3mm}
+.plabel{width:60mm;height:30mm;border:1px dashed #bbb;padding:2mm 3mm;display:flex;flex-direction:column;justify-content:space-between;break-inside:avoid;font-family:var(--font)}
+.plabel .t{font-size:8pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plabel svg{width:100%;height:18mm}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <div class="title">
+    <h1>📚 圖書室借還書</h1>
+    <span class="badge">試做版・資料只存在這台電腦</span>
+    <span class="sp"></span>
+    <button class="btn ghost small" id="open-set">⚙️ 設定與備份</button>
+  </div>
+  <nav class="tabs">
+    <a href="#borrow" data-v="borrow">📖 借書</a>
+    <a href="#return" data-v="return">↩️ 還書</a>
+    <a href="#books" data-v="books">📚 書目</a>
+    <a href="#patrons" data-v="patrons">🪪 借閱者</a>
+    <a href="#overview" data-v="overview">📊 總覽</a>
+  </nav>
+</div></header>
+
+<main>
+  <!-- 借書 -->
+  <section id="v-borrow">
+    <div class="scan"><input id="b-scan" placeholder="感應借閱卡／悠遊卡，或掃借閱證、書的條碼" autocomplete="off" aria-label="借書掃描"><button class="btn ghost" id="b-cam" title="用鏡頭掃">📷</button></div>
+    <p class="hint">先<b>感應卡片</b>（或掃借閱證 P 開頭），再掃<b>書</b>（B 開頭，或書背的 ISBN），最後按「確認借出」。</p>
+    <div class="grid2">
+      <div class="card"><h2>🪪 借閱者</h2><div id="b-who"></div></div>
+      <div class="card"><h2>📚 這次要借的書</h2><div id="b-cart"></div>
+        <div class="foot"><span id="b-due" class="hint" style="margin:0"></span><span class="sp"></span><button class="btn ghost" id="b-clear">清除</button><button class="btn good" id="b-ok">確認借出</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 還書 -->
+  <section id="v-return" hidden>
+    <div class="scan"><input id="r-scan" placeholder="掃要還的書（館藏條碼或 ISBN），按 Enter" autocomplete="off" aria-label="還書掃描"><button class="btn ghost" id="r-cam" title="用鏡頭掃">📷</button></div>
+    <p class="hint">一本一本掃就好，掃到就自動還書。</p>
+    <div class="card"><h2>剛剛還的書</h2><div id="r-list"></div></div>
+  </section>
+
+  <!-- 書目 -->
+  <section id="v-books" hidden>
+    <div class="bar">
+      <input type="search" id="k-q" placeholder="搜尋書名、作者、ISBN、館藏號">
+      <select id="k-f" aria-label="狀態"><option value="">全部</option><option value="in">在架上</option><option value="out">借出中</option><option value="late">逾期</option></select>
+      <button class="btn" id="k-new">＋ 新增書</button>
+      <button class="btn ghost" id="k-csv">匯入清單</button>
+      <button class="btn ghost" id="k-print">🖨 印書標</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th><input type="checkbox" class="chk" id="k-all" aria-label="全選"></th><th>館藏號</th><th>書名</th><th>作者</th><th>ISBN</th><th>位置</th><th>狀態</th><th></th></tr></thead><tbody id="k-body"></tbody></table></div>
+    <p class="hint" style="margin-top:8px" id="k-count"></p>
+  </section>
+
+  <!-- 借閱者 -->
+  <section id="v-patrons" hidden>
+    <div class="bar">
+      <input type="search" id="p-q" placeholder="搜尋姓名、電話、信箱、證號">
+      <button class="btn" id="p-new">＋ 辦借閱證</button>
+      <button class="btn ghost" id="p-print">🖨 印借閱證</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th><input type="checkbox" class="chk" id="p-all" aria-label="全選"></th><th>證號</th><th>姓名</th><th>電話</th><th>信箱</th><th>借閱中</th><th></th></tr></thead><tbody id="p-body"></tbody></table></div>
+  </section>
+
+  <!-- 總覽 -->
+  <section id="v-overview" hidden>
+    <div class="stats" id="o-stats"></div>
+    <div class="card" style="margin-bottom:14px"><h2>📧 要通知的人</h2><p class="hint" style="margin:0 0 6px">逾期和快到期的人。按「寄信」會打開妳的郵件 App，信已經寫好，確認後按寄出；也可以直接打電話。</p><div id="o-notify"></div></div>
+    <div class="grid2">
+      <div class="card"><h2>⏰ 逾期名單</h2><div id="o-late"></div></div>
+      <div class="card"><h2>📅 3 天內到期</h2><div id="o-soon"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>🕘 最近的借還紀錄</h2><div id="o-log"></div></div>
+  </section>
+</main>
+
+<div class="sheet" id="sheet" hidden><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
+<div id="print"></div>
+
+<script>
+/* ---------- 資料 ---------- */
+const KEY="library_demo_v1";
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today=()=>ymd(new Date());
+const toDate=s=>{const p=String(s).split("-").map(Number);return new Date(p[0],p[1]-1,p[2])};
+const addDays=(s,n)=>{const d=toDate(s);d.setDate(d.getDate()+n);return ymd(d)};
+const diff=(a,b)=>Math.round((toDate(b)-toDate(a))/864e5);
+const md=s=>{const d=toDate(s);return (d.getMonth()+1)+"/"+d.getDate()};
+
+function seed(){
+  const titles=[["小王子","聖修伯里"],["論語","孔子弟子"],["西遊記","吳承恩"],["紅樓夢","曹雪芹"],["三國演義","羅貫中"],["水滸傳","施耐庵"],["傲慢與偏見","珍・奧斯汀"],["簡愛","夏綠蒂・勃朗特"],["老人與海","海明威"],["湯姆歷險記","馬克・吐溫"],["愛麗絲夢遊仙境","路易斯・卡羅"],["伊索寓言","伊索"],["格林童話","格林兄弟"],["安徒生童話","安徒生"],["唐詩三百首","蘅塘退士 編"],["小婦人","露意莎・梅・奧爾柯特"],["秘密花園","法蘭西絲・霍森・柏納特"],["綠野仙蹤","法蘭克・鮑姆"],["小王子","聖修伯里"],["西遊記","吳承恩"]];
+  const books={};titles.forEach((t,i)=>{const id="B"+String(i+1).padStart(4,"0");books[id]={title:t[0],author:t[1],isbn:"",publisher:"",place:i<10?"A 櫃":"B 櫃",note:"範例資料",at:Date.now()}});
+  const people=[["王小明","0912-000-001"],["陳美玲","0912-000-002"],["林大同","0912-000-003"],["張雅婷","0912-000-004"],["黃志豪","0912-000-005"]];
+  const patrons={};people.forEach((p,i)=>{const id="P"+String(i+1).padStart(4,"0");patrons[id]={name:p[0],phone:p[1],email:"demo"+(i+1)+"@example.com",cards:i===0?["1234567890"]:i===1?["0A1B2C3D"]:[],note:"假資料",at:Date.now()}});
+  const t=today();
+  const loans=[
+    {id:"L1",bookId:"B0001",patronId:"P0001",out:addDays(t,-5),due:addDays(t,9),renew:0,ret:null},
+    {id:"L2",bookId:"B0007",patronId:"P0002",out:addDays(t,-20),due:addDays(t,-6),renew:0,ret:null},
+    {id:"L3",bookId:"B0012",patronId:"P0002",out:addDays(t,-12),due:addDays(t,2),renew:0,ret:null},
+    {id:"L4",bookId:"B0003",patronId:"P0003",out:addDays(t,-30),due:addDays(t,-16),renew:0,ret:addDays(t,-17)}
+  ];
+  return {books,patrons,loans,seq:{B:20,P:5,L:4},cfg:{...CFG0}};
+}
+const CFG0={loanDays:14,maxBooks:5,maxRenew:1,name:"圖書室",finePerDay:5,fineCap:0,remindDays:2,contact:""};
+function fix(d){d.cfg={...CFG0,...(d.cfg||{})};Object.values(d.patrons||{}).forEach(p=>{if(!Array.isArray(p.cards))p.cards=[]});return d}
+function load(){try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);if(d&&d.books)return fix(d)}}catch(e){}return seed()}
+let db=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast("這個瀏覽器沒辦法存資料，關掉後會不見","bad")}}
+save();
+const nextId=k=>{db.seq[k]=(db.seq[k]||0)+1;return k+(k==="L"?db.seq[k]:String(db.seq[k]).padStart(4,"0"))};
+
+const activeLoan=bookId=>db.loans.find(l=>l.bookId===bookId&&!l.ret);
+const loansOf=pid=>db.loans.filter(l=>l.patronId===pid&&!l.ret);
+const isLate=l=>!l.ret&&l.due<today();
+const bookStatus=id=>{const l=activeLoan(id);return !l?"in":isLate(l)?"late":"out"};
+/* 感應卡：卡片裡不存資料，只用卡號查是誰 */
+const cardOwner=uid=>{const u=norm(uid);if(!u)return null;const hit=Object.entries(db.patrons).find(([id,p])=>(p.cards||[]).some(c=>norm(c)===u));return hit?hit[0]:null};
+/* 罰款：逾期天數 × 每天罰款（有上限就不超過上限） */
+const lateDays=l=>Math.max(0,diff(l.due,l.ret||today()));
+const fineOf=l=>{if(l.fine!=null)return l.fine;const f=lateDays(l)*(db.cfg.finePerDay||0);return db.cfg.fineCap>0?Math.min(f,db.cfg.fineCap):f};
+const unpaidOf=pid=>db.loans.filter(l=>l.patronId===pid&&l.ret&&l.fine>0&&!l.paid);
+const sum=a=>a.reduce((s,x)=>s+x,0);
+
+/* ---------- 小工具 ---------- */
+const $=s=>document.querySelector(s);
+function el(t,a={},...k){const e=document.createElement(t);for(const[x,v]of Object.entries(a)){if(x==="class")e.className=v;else if(x.startsWith("on"))e.addEventListener(x.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(x,v===true?"":v)}k.flat().forEach(c=>{if(c!=null&&c!=="")e.append(c)});return e}
+let toastT;function toast(msg,kind){document.querySelectorAll(".toast").forEach(x=>x.remove());const t=el("div",{class:"toast "+(kind||""),role:"status"},msg);document.body.append(t);clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),2600)}
+function beep(ok){try{const c=new (window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator(),g=c.createGain();o.frequency.value=ok?880:220;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+(ok?.08:.25))}catch(e){}}
+function twoStep(btn,label,sure,fn){btn.onclick=()=>{if(btn.classList.contains("sure"))fn();else{btn.classList.add("sure");btn.textContent=sure;setTimeout(()=>{btn.classList.remove("sure");btn.textContent=label},4000)}}}
+function openSheet(){$("#sheet").hidden=false;return $("#panel")}
+const closeSheet=()=>{stopCam();$("#sheet").hidden=true;focusScan()};
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#sheet").hidden)closeSheet()});
+const norm=s=>String(s||"").trim().toUpperCase().replace(/[\s-]/g,"");
+const tagFor=st=>st==="in"?el("span",{class:"tag in"},"在架上"):st==="late"?el("span",{class:"tag late"},"逾期"):el("span",{class:"tag out"},"借出中");
+
+/* 掃到的號碼 → 找書（館藏號，或 ISBN 找在架上的那本） */
+function findBook(code,wantIn,skip){
+  const c=norm(code);if(db.books[c])return {id:c};
+  const isbnMatches=Object.entries(db.books).filter(([id,b])=>norm(b.isbn)&&norm(b.isbn)===c);
+  if(!isbnMatches.length)return null;
+  const pick=isbnMatches.find(([id])=>wantIn?(!activeLoan(id)&&!(skip||[]).includes(id)):!!activeLoan(id));
+  return pick?{id:pick[0]}:{id:isbnMatches[0][0]};
+}
+
+/* ---------- 借書 ---------- */
+let curPatron=null,cart=[];
+function renderBorrow(){
+  const w=$("#b-who");w.replaceChildren();
+  if(!curPatron||!db.patrons[curPatron]){curPatron=null;w.append(el("div",{class:"empty"},"先掃借閱證，或在「借閱者」頁按「借書」"))}
+  else{
+    const p=db.patrons[curPatron],ls=loansOf(curPatron),late=ls.filter(isLate);
+    const owe=sum(unpaidOf(curPatron).map(l=>l.fine));
+    w.append(el("div",{class:"who"},el("div",{class:"nm"},p.name),el("div",{class:"meta num"},curPatron+"・"+(p.phone||"")+(p.email?"・"+p.email:"")),
+      el("div",{class:"meta"},"目前借 "+ls.length+" 本，最多 "+db.cfg.maxBooks+" 本"+((p.cards||[]).length?"・已綁 "+p.cards.length+" 張卡":""))));
+    if(late.length)w.append(el("div",{class:"warnbox",style:"margin-top:8px"},"⚠️ 有 "+late.length+" 本逾期（目前罰款 $"+sum(late.map(fineOf))+"），請提醒先還書"));
+    if(owe){const pay=el("button",{class:"btn small",style:"margin-left:8px"},"已收款");pay.onclick=()=>{unpaidOf(curPatron).forEach(l=>{l.paid=today()});save();toast("罰款收好了","good");renderAll()};
+      w.append(el("div",{class:"warnbox",style:"margin-top:8px;display:flex;align-items:center;justify-content:space-between"},"💰 還沒繳的罰款 $"+owe,pay))}
+    const list=el("div",{class:"list"});
+    ls.sort((a,b)=>a.due.localeCompare(b.due)).forEach(l=>{const b=db.books[l.bookId]||{title:"（已刪除的書）"};const lt=isLate(l);
+      const rn=el("button",{class:"btn ghost small"},"續借");
+      rn.disabled=lt||l.renew>=db.cfg.maxRenew;rn.title=lt?"逾期不能續借":l.renew>=db.cfg.maxRenew?"已經續借過了":"";
+      rn.onclick=()=>{l.renew++;l.due=addDays(today(),db.cfg.loanDays);save();toast("續借好了，新的到期日 "+md(l.due),"good");renderAll()};
+      list.append(el("div",{class:"item"+(lt?" over":"")},el("div",{class:"info"},el("b",{},b.title),el("span",{class:"num"},l.bookId+"・到期 "+md(l.due)+(lt?"（逾期 "+diff(l.due,today())+" 天）":""))),rn))});
+    if(ls.length)w.append(list);
+    w.append(el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost small",onclick:()=>{curPatron=null;cart=[];renderBorrow();focusScan()}},"換一個人")));
+  }
+  const c=$("#b-cart");c.replaceChildren();
+  if(!cart.length)c.append(el("div",{class:"empty"},"掃書的條碼，書會出現在這裡"));
+  else{const list=el("div",{class:"list"});cart.forEach((id,i)=>{const b=db.books[id];list.append(el("div",{class:"item"},el("div",{class:"info"},el("b",{},b.title),el("span",{class:"num"},id+(b.author?"・"+b.author:""))),el("button",{class:"btn ghost small","aria-label":"移除",onclick:()=>{cart.splice(i,1);renderBorrow();focusScan()}},"✕")))});c.append(list)}
+  $("#b-due").textContent=cart.length?"到期日："+md(addDays(today(),db.cfg.loanDays))+"（"+db.cfg.loanDays+" 天）":"";
+  $("#b-ok").textContent="確認借出"+(cart.length?"（"+cart.length+" 本）":"");$("#b-ok").disabled=!curPatron||!cart.length;
+}
+function borrowScan(code){
+  const c=norm(code);if(!c)return;
+  const owner=cardOwner(c);
+  if(owner){curPatron=owner;cart=[];beep(true);renderBorrow();toast("💳 "+db.patrons[owner].name);return}
+  if(db.patrons[c]){curPatron=c;cart=[];beep(true);renderBorrow();return}
+  if(/^P\d{4}$/.test(c)){beep(false);toast("找不到借閱證 "+c,"bad");return}
+  const f=findBook(c,true,cart);
+  if(!f){beep(false);toast("找不到："+c+"（書要先在「書目」新增；卡片要先在「借閱者」綁定）","bad");return}
+  if(!curPatron){beep(false);toast("請先掃借閱證","bad");return}
+  if(cart.includes(f.id)){toast("這本已經在清單裡了");return}
+  const l=activeLoan(f.id);
+  if(l){beep(false);const p=db.patrons[l.patronId];toast("「"+db.books[f.id].title+"」還在 "+(p?p.name:"別人")+" 那裡，要先還書","bad");return}
+  if(loansOf(curPatron).length+cart.length>=db.cfg.maxBooks){beep(false);toast("最多只能借 "+db.cfg.maxBooks+" 本","bad");return}
+  cart.push(f.id);beep(true);renderBorrow();
+}
+$("#b-ok").onclick=()=>{if(!curPatron||!cart.length)return;const due=addDays(today(),db.cfg.loanDays);
+  cart.forEach(id=>db.loans.push({id:nextId("L"),bookId:id,patronId:curPatron,out:today(),due,renew:0,ret:null}));
+  const n=cart.length;cart=[];save();toast("✅ 借出 "+n+" 本，"+md(due)+" 前要還","good");renderAll();focusScan()};
+$("#b-clear").onclick=()=>{cart=[];renderBorrow();focusScan()};
+
+/* ---------- 還書 ---------- */
+let returned=[];
+function returnScan(code){
+  const c=norm(code);if(!c)return;
+  const f=findBook(c,false);
+  if(!f){beep(false);toast("找不到這本書："+c,"bad");return}
+  const l=activeLoan(f.id);
+  if(!l){beep(false);toast("「"+db.books[f.id].title+"」本來就在架上，沒有借出去","bad");return}
+  const late=isLate(l)?diff(l.due,today()):0;
+  const fine=fineOf(l);
+  l.ret=today();l.fine=fine;l.paid=fine?false:today();save();beep(true);
+  returned.unshift({loanId:l.id,bookId:f.id,patronId:l.patronId,late,at:new Date()});
+  toast(late?"還好了，逾期 "+late+" 天"+(fine?"，罰款 $"+fine:""):"✅ 還書完成",late?"bad":"good");renderAll();
+}
+function renderReturn(){
+  const box=$("#r-list");box.replaceChildren();
+  if(!returned.length){box.append(el("div",{class:"empty"},"還沒有還書。掃書的條碼就會出現在這裡"));return}
+  const list=el("div",{class:"list"});
+  returned.slice(0,30).forEach(r=>{const b=db.books[r.bookId]||{title:"?"},p=db.patrons[r.patronId]||{name:"?"},l=db.loans.find(x=>x.id===r.loanId)||{};
+    const right=el("div",{style:"display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"});
+    if(r.late)right.append(el("span",{class:"tag late"},"逾期 "+r.late+" 天"));else right.append(el("span",{class:"tag in"},"準時"));
+    if(l.fine>0){if(l.paid)right.append(el("span",{class:"tag in"},"罰款 $"+l.fine+" 已收"));
+      else{const pay=el("button",{class:"btn small"},"收 $"+l.fine);pay.onclick=()=>{l.paid=today();save();toast("罰款收好了","good");renderAll();focusScan()};right.append(pay)}}
+    list.append(el("div",{class:"item"+(r.late?" over":"")},el("div",{class:"info"},el("b",{},b.title),el("span",{class:"num"},r.bookId+"・"+p.name+" 借的・"+pad(r.at.getHours())+":"+pad(r.at.getMinutes()))),right))});
+  box.append(list);
+}
+
+/* ---------- 書目 ---------- */
+let selBooks=new Set();
+function renderBooks(){
+  const q=norm($("#k-q").value),f=$("#k-f").value,tb=$("#k-body");tb.replaceChildren();
+  const rows=Object.entries(db.books).filter(([id,b])=>{if(f&&bookStatus(id)!==f&&!(f==="out"&&bookStatus(id)==="late"))return false;if(!q)return true;return norm(id+b.title+b.author+b.isbn+b.publisher).includes(q)}).sort((a,b)=>a[0].localeCompare(b[0]));
+  rows.forEach(([id,b])=>{const st=bookStatus(id),l=activeLoan(id);
+    const cb=el("input",{type:"checkbox",class:"chk","aria-label":"選取 "+b.title});cb.checked=selBooks.has(id);cb.onchange=()=>{cb.checked?selBooks.add(id):selBooks.delete(id)};
+    tb.append(el("tr",{},el("td",{},cb),el("td",{class:"nw num"},id),el("td",{},b.title),el("td",{},b.author||""),el("td",{class:"nw num"},b.isbn||""),el("td",{class:"nw"},b.place||""),
+      el("td",{class:"nw"},tagFor(st),l?el("div",{style:"font-size:12px;color:var(--muted)"},(db.patrons[l.patronId]||{}).name+"・到期 "+md(l.due)):""),
+      el("td",{class:"nw"},el("button",{class:"btn ghost small",onclick:()=>bookEditor(id)},"編輯"))))});
+  if(!rows.length)tb.append(el("tr",{},el("td",{colspan:"8"},el("div",{class:"empty"},"沒有符合的書"))));
+  $("#k-count").textContent="共 "+Object.keys(db.books).length+" 本，顯示 "+rows.length+" 本";
+}
+$("#k-q").oninput=renderBooks;$("#k-f").onchange=renderBooks;
+$("#k-all").onchange=e=>{document.querySelectorAll("#k-body tr").forEach(tr=>{const id=tr.children[1]&&tr.children[1].textContent;if(id&&db.books[id]){e.target.checked?selBooks.add(id):selBooks.delete(id)}});renderBooks()};
+$("#k-new").onclick=()=>bookEditor(null);
+/* 用 ISBN 查書名：先問 Google Books，查不到或額滿再問 Open Library（都免費、只送出 ISBN） */
+async function lookupIsbn(isbn){
+  try{const r=await fetch("https://www.googleapis.com/books/v1/volumes?q=isbn:"+encodeURIComponent(isbn));
+    if(r.ok){const j=await r.json();const v=j.items&&j.items[0]&&j.items[0].volumeInfo;
+      if(v)return {title:v.title+(v.subtitle?"："+v.subtitle:""),author:(v.authors||[]).join("、"),publisher:v.publisher||""}}}catch(e){}
+  const r2=await fetch("https://openlibrary.org/api/books?bibkeys=ISBN:"+encodeURIComponent(isbn)+"&format=json&jscmd=data");
+  const j2=await r2.json();const v2=j2["ISBN:"+isbn];if(!v2)return null;
+  return {title:v2.title+(v2.subtitle?"："+v2.subtitle:""),author:(v2.authors||[]).map(a=>a.name).join("、"),publisher:(v2.publishers||[]).map(p=>p.name).join("、")};
+}
+function bookEditor(id){
+  const isNew=!id,b=id?{...db.books[id]}:{title:"",author:"",isbn:"",publisher:"",place:"",note:""};
+  const p=openSheet();p.replaceChildren(el("h3",{},isNew?"新增書":"編輯書・"+id));
+  const f=(label,key,attrs={})=>{const i=el("input",{value:b[key]||"",...attrs});i.oninput=()=>b[key]=i.value;return [el("label",{class:"f"},label,i),i]};
+  const [isbnL,isbnI]=f("ISBN（掃書背的條碼，或手打）","isbn",{inputmode:"numeric",placeholder:"例如 9789571234567"});
+  const look=el("button",{class:"btn ghost",type:"button"},"🔍 自動帶入");
+  const msg=el("div",{class:"note",hidden:true});
+  const [tL,tI]=f("書名 *","title"),[aL,aI]=f("作者","author"),[pL,pI]=f("出版社","publisher"),[plL]=f("位置（例如 A 櫃第 2 層）","place"),[nL]=f("備註","note");
+  look.onclick=async()=>{const s=norm(isbnI.value);if(!s){msg.hidden=false;msg.textContent="請先輸入或掃 ISBN";return}
+    look.disabled=true;msg.hidden=false;msg.textContent="查詢中…";
+    try{const r=await lookupIsbn(s);if(!r){msg.textContent="查不到這本，請自己輸入書名";}else{b.title=tI.value=r.title;b.author=aI.value=r.author;b.publisher=pI.value=r.publisher;msg.textContent="✅ 找到了，請確認一下"}}
+    catch(e){msg.textContent="查詢失敗（可能沒有網路），請自己輸入"}look.disabled=false};
+  isbnI.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();look.click()}});
+  const cam=el("button",{class:"btn ghost",type:"button",title:"用鏡頭掃 ISBN"},"📷");cam.onclick=()=>scanCam(code=>{isbnI.value=b.isbn=code;look.click()},true);
+  p.append(el("div",{class:"row3"},isbnL,el("div",{style:"display:flex;gap:6px"},look,cam)),msg,tL,el("div",{class:"row2"},aL,pL),plL,nL);
+  let qty;if(isNew){qty=el("input",{type:"number",min:"1",max:"50",value:"1"});p.append(el("label",{class:"f"},"有幾本（同一本書有好幾本，會各自給一個館藏號）",qty))}
+  const err=el("div",{class:"err"});p.append(err);
+  const sv=el("button",{class:"btn"},"儲存");
+  sv.onclick=()=>{if(!b.title.trim()){err.textContent="請輸入書名";tI.focus();return}
+    b.title=b.title.trim();b.isbn=norm(b.isbn);
+    if(isNew){const n=Math.min(50,Math.max(1,Number(qty.value)||1));const ids=[];for(let i=0;i<n;i++){const nid=nextId("B");db.books[nid]={...b,at:Date.now()};ids.push(nid)}save();toast("新增好了："+ids.join("、"),"good");ids.forEach(x=>selBooks.add(x))}
+    else{db.books[id]={...db.books[id],...b};save();toast("改好了","good")}
+    closeSheet();renderAll()};
+  const del=el("button",{class:"btn danger"},"刪除");twoStep(del,"刪除","確定刪除？",()=>{if(activeLoan(id)){err.textContent="這本還沒還，不能刪除";return}delete db.books[id];selBooks.delete(id);save();closeSheet();renderAll()});
+  p.append(el("div",{class:"foot"},isNew?"":del,el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消"),sv));
+  setTimeout(()=>(isNew?isbnI:tI).focus(),30);
+}
+$("#k-csv").onclick=()=>{
+  const p=openSheet();p.replaceChildren(el("h3",{},"匯入書單"),el("div",{class:"note"},"從 Excel 複製貼上就可以。一行一本，欄位順序：書名、作者、ISBN、出版社、位置、本數（只有書名一定要有）。第一行是標題的話會自動略過。"));
+  const ta=el("textarea",{rows:"8",placeholder:"小王子\t聖修伯里\t9789571234567\t某出版社\tA 櫃\t2"});
+  p.append(el("label",{class:"f"},"貼上書單",ta));const err=el("div",{class:"err"});p.append(err);
+  const go=el("button",{class:"btn"},"匯入");
+  go.onclick=()=>{const lines=ta.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);let n=0;
+    lines.forEach((ln,i)=>{const c=ln.split(/\t|,/).map(x=>x.trim());if(i===0&&/書名/.test(c[0]))return;if(!c[0])return;
+      const qty=Math.min(50,Math.max(1,Number(c[5])||1));for(let k=0;k<qty;k++){const nid=nextId("B");db.books[nid]={title:c[0],author:c[1]||"",isbn:norm(c[2]),publisher:c[3]||"",place:c[4]||"",note:"",at:Date.now()};n++}});
+    if(!n){err.textContent="沒有讀到任何書，請確認格式";return}save();closeSheet();toast("匯入 "+n+" 本","good");renderAll()};
+  p.append(el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消"),go));
+};
+
+/* ---------- 借閱者 ---------- */
+let selPatrons=new Set();
+function renderPatrons(){
+  const q=norm($("#p-q").value),tb=$("#p-body");tb.replaceChildren();
+  const rows=Object.entries(db.patrons).filter(([id,p])=>!q||norm(id+p.name+p.phone+p.email+(p.cards||[]).join("")).includes(q)).sort((a,b)=>a[0].localeCompare(b[0]));
+  rows.forEach(([id,p])=>{const ls=loansOf(id),late=ls.filter(isLate).length;
+    const cb=el("input",{type:"checkbox",class:"chk","aria-label":"選取 "+p.name});cb.checked=selPatrons.has(id);cb.onchange=()=>{cb.checked?selPatrons.add(id):selPatrons.delete(id)};
+    tb.append(el("tr",{},el("td",{},cb),el("td",{class:"nw num"},id),el("td",{class:"nw"},el("b",{},p.name),(p.cards||[]).length?el("span",{style:"font-size:12px;color:var(--muted);margin-left:6px"},"💳"+p.cards.length):""),el("td",{class:"nw num"},p.phone||""),el("td",{},p.email||""),
+      el("td",{class:"nw"},ls.length+" 本",late?el("span",{class:"tag late",style:"margin-left:6px"},"逾期 "+late):""),
+      el("td",{class:"nw"},el("button",{class:"btn small",onclick:()=>{curPatron=id;cart=[];location.hash="#borrow"}},"借書")," ",el("button",{class:"btn ghost small",onclick:()=>patronEditor(id)},"編輯"))))});
+  if(!rows.length)tb.append(el("tr",{},el("td",{colspan:"7"},el("div",{class:"empty"},"沒有符合的借閱者"))));
+}
+$("#p-q").oninput=renderPatrons;
+$("#p-all").onchange=e=>{Object.keys(db.patrons).forEach(id=>e.target.checked?selPatrons.add(id):selPatrons.delete(id));renderPatrons()};
+$("#p-new").onclick=()=>patronEditor(null);
+function patronEditor(id){
+  const isNew=!id,p=id?{...db.patrons[id],cards:[...(db.patrons[id].cards||[])]}:{name:"",phone:"",email:"",note:"",cards:[]};
+  const pn=openSheet();pn.replaceChildren(el("h3",{},isNew?"辦借閱證":"編輯借閱者・"+id));
+  const f=(label,key,attrs={})=>{const i=el("input",{value:p[key]||"",...attrs});i.oninput=()=>p[key]=i.value;return [el("label",{class:"f"},label,i),i]};
+  const [nL,nI]=f("姓名 *","name"),[phL,phI]=f("電話 *（逾期時可以打電話提醒）","phone",{type:"tel",inputmode:"tel"}),[emL,emI]=f("信箱 *（到期、逾期通知會寄到這裡）","email",{type:"email"}),[noL]=f("備註","note");
+  pn.append(nL,el("div",{class:"row2"},phL,emL),noL);
+  /* 綁卡：感應讀卡機就像鍵盤，感應一下會把卡號打進框框並按 Enter */
+  const cardBox=el("div",{class:"list",style:"margin-top:4px"});
+  const cardIn=el("input",{placeholder:"在這裡感應卡片（借閱卡或悠遊卡），或手打卡號按 Enter",autocomplete:"off"});
+  const drawCards=()=>{cardBox.replaceChildren(...p.cards.map((c,i)=>el("div",{class:"item"},el("div",{class:"info"},el("b",{class:"num"},"💳 "+c)),el("button",{class:"btn ghost small",type:"button",onclick:()=>{p.cards.splice(i,1);drawCards()}},"解除"))));if(!p.cards.length)cardBox.append(el("div",{class:"hint",style:"margin:0"},"還沒有綁卡。可以綁好幾張（例如店裡買的悠遊卡＋自己的悠遊卡）。"))};
+  cardIn.addEventListener("keydown",e=>{if(e.key!=="Enter")return;e.preventDefault();const u=norm(cardIn.value);cardIn.value="";if(!u)return;
+    const who=cardOwner(u);if(who&&who!==id){err.textContent="這張卡已經綁給 "+db.patrons[who].name+"（"+who+"）了";beep(false);return}
+    if(p.cards.map(norm).includes(u)){err.textContent="這張卡已經綁好了";return}
+    if(db.books[u]||/^P\d{4}$/.test(u)){err.textContent="這看起來是書或借閱證的號碼，不是卡號";beep(false);return}
+    p.cards.push(u);err.textContent="";beep(true);drawCards()});
+  pn.append(el("label",{class:"f"},"💳 綁定感應卡（借閱卡、悠遊卡都可以）",cardIn),cardBox,
+    el("div",{class:"note"},"卡片裡不會存任何資料，系統只記卡號；卡片掉了，在這裡按「解除」就好。⚠️ 試做版請用假資料，正式使用時借閱者的個資要放在安全的地方。"));
+  drawCards();
+  const err=el("div",{class:"err"});pn.append(err);
+  const sv=el("button",{class:"btn"},isNew?"辦好了，印借閱證":"儲存");
+  sv.onclick=()=>{if(!p.name.trim()){err.textContent="請輸入姓名";nI.focus();return}p.name=p.name.trim();
+    p.phone=String(p.phone||"").trim();p.email=String(p.email||"").trim();
+    if(!p.phone){err.textContent="請輸入電話（逾期時要打電話提醒）";phI.focus();return}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)){err.textContent="請輸入正確的信箱（通知會寄到這裡）";emI.focus();return}
+    if(isNew){const nid=nextId("P");db.patrons[nid]={...p,at:Date.now()};save();closeSheet();renderAll();toast("借閱證號碼："+nid,"good");printCards([nid])}
+    else{db.patrons[id]={...db.patrons[id],...p};save();closeSheet();renderAll();toast("改好了","good")}};
+  const del=el("button",{class:"btn danger"},"刪除");twoStep(del,"刪除","確定刪除？",()=>{if(loansOf(id).length){err.textContent="還有書沒還，不能刪除";return}delete db.patrons[id];selPatrons.delete(id);save();closeSheet();renderAll()});
+  pn.append(el("div",{class:"foot"},isNew?"":del,el("span",{class:"sp"}),isNew?"":el("button",{class:"btn ghost",onclick:()=>{closeSheet();printCards([id])}},"🖨 印借閱證"),el("button",{class:"btn ghost",onclick:closeSheet},"取消"),sv));
+  setTimeout(()=>nI.focus(),30);
+}
+
+/* ---------- 總覽 ---------- */
+function renderOverview(){
+  const t=today(),act=db.loans.filter(l=>!l.ret),late=act.filter(isLate),soon=act.filter(l=>!isLate(l)&&diff(t,l.due)<=3);
+  $("#o-stats").replaceChildren(...[["藏書",Object.keys(db.books).length,""],["借出中",act.length,""],["逾期",late.length,late.length?"bad":""],["借閱者",Object.keys(db.patrons).length,""],["今天借出",db.loans.filter(l=>l.out===t).length,""],["今天還書",db.loans.filter(l=>l.ret===t).length,""],["未繳罰款","$"+sum(db.loans.filter(l=>l.ret&&l.fine>0&&!l.paid).map(l=>l.fine)),db.loans.some(l=>l.ret&&l.fine>0&&!l.paid)?"bad":""]].map(([k,v,c])=>el("div",{class:"stat "+c},el("span",{},k),el("b",{},String(v)))));
+  const row=l=>{const b=db.books[l.bookId]||{title:"?"},p=db.patrons[l.patronId]||{name:"?",phone:""};return el("div",{class:"item"+(isLate(l)?" over":"")},el("div",{class:"info"},el("b",{},b.title),el("span",{class:"num"},p.name+"・"+(p.phone||"")+"・到期 "+md(l.due)+(isLate(l)?"（逾期 "+diff(l.due,t)+" 天）":""))))};
+  const fill=(sel,arr,emptyMsg)=>{const box=$(sel);box.replaceChildren();if(!arr.length)box.append(el("div",{class:"empty"},emptyMsg));else box.append(el("div",{class:"list"},...arr.sort((a,b)=>a.due.localeCompare(b.due)).map(row)))};
+  fill("#o-late",late,"沒有逾期的書 👍");fill("#o-soon",soon,"最近沒有快到期的書");
+  renderNotify();
+  const ev=[];db.loans.forEach(l=>{ev.push({d:l.out,k:"借出",l});if(l.ret)ev.push({d:l.ret,k:"還書",l})});
+  ev.sort((a,b)=>b.d.localeCompare(a.d)||(b.k==="還書")-(a.k==="還書"));
+  const lg=$("#o-log");lg.replaceChildren();
+  if(!ev.length)lg.append(el("div",{class:"empty"},"還沒有紀錄"));
+  else lg.append(el("div",{class:"tablewrap",style:"border:0"},el("table",{},el("thead",{},el("tr",{},el("th",{},"日期"),el("th",{},"動作"),el("th",{},"書"),el("th",{},"借閱者"))),
+    el("tbody",{},...ev.slice(0,30).map(e=>el("tr",{},el("td",{class:"nw num"},md(e.d)),el("td",{class:"nw"},e.k==="借出"?el("span",{class:"tag out"},"借出"):el("span",{class:"tag in"},"還書")),el("td",{},(db.books[e.l.bookId]||{title:"?"}).title),el("td",{class:"nw"},(db.patrons[e.l.patronId]||{name:"?"}).name)))))));
+}
+
+/* ---------- 通知：逾期／快到期，一個人一封信 ---------- */
+function noticeFor(pid){
+  const p=db.patrons[pid],t=today(),ls=loansOf(pid);
+  const late=ls.filter(isLate),soon=ls.filter(l=>!isLate(l)&&diff(t,l.due)<=db.cfg.remindDays);
+  if(!late.length&&!soon.length)return null;
+  const nm=db.cfg.name||"圖書室",tt=id=>"《"+((db.books[id]||{}).title||"?")+"》";
+  const subject=late.length?"【"+nm+"】借閱逾期通知，請儘速還書":"【"+nm+"】借閱到期提醒";
+  let body=p.name+" 您好：\n\n";
+  if(late.length){body+="以下書籍已經逾期，請儘速歸還：\n";late.forEach(l=>{body+="・"+tt(l.bookId)+" 到期日 "+md(l.due)+"，已逾期 "+lateDays(l)+" 天"+(db.cfg.finePerDay?"，目前罰款 "+fineOf(l)+" 元":"")+"\n"});
+    if(db.cfg.finePerDay)body+="\n逾期每天罰款 "+db.cfg.finePerDay+" 元"+(db.cfg.fineCap>0?"（每本最多 "+db.cfg.fineCap+" 元）":"")+"，還書時於櫃檯繳納。\n";body+="\n"}
+  if(soon.length){body+="以下書籍即將到期：\n";soon.forEach(l=>{body+="・"+tt(l.bookId)+" 到期日 "+md(l.due)+"\n"});body+="\n到期前可以到櫃檯續借（逾期就不能續借了）。\n\n"}
+  const owe=sum(unpaidOf(pid).map(l=>l.fine));if(owe)body+="另外，您還有 "+owe+" 元罰款尚未繳納。\n\n";
+  body+="如果已經歸還，請忽略這封通知，謝謝！\n"+nm+(db.cfg.contact?"　聯絡電話："+db.cfg.contact:"");
+  return {late,soon,subject,body};
+}
+function renderNotify(){
+  const box=$("#o-notify");box.replaceChildren();
+  const rows=Object.keys(db.patrons).map(pid=>({pid,n:noticeFor(pid)})).filter(x=>x.n).sort((a,b)=>b.n.late.length-a.n.late.length);
+  if(!rows.length){box.append(el("div",{class:"empty"},"目前沒有需要通知的人 👍"));return}
+  const list=el("div",{class:"list"});
+  rows.forEach(({pid,n})=>{const p=db.patrons[pid];const all=n.late.concat(n.soon);
+    const last=all.map(l=>l.notified).filter(Boolean).sort().pop();
+    const mark=()=>{all.forEach(l=>{l.notified=today()});save();renderAll()};
+    const mail=el("a",{class:"btn small",href:"mailto:"+encodeURIComponent(p.email||"")+"?subject="+encodeURIComponent(n.subject)+"&body="+encodeURIComponent(n.body)},"📧 寄信");
+    mail.addEventListener("click",()=>setTimeout(mark,300));
+    const copy=el("button",{class:"btn ghost small"},"複製內容");copy.onclick=async()=>{try{await navigator.clipboard.writeText(n.subject+"\n\n"+n.body);toast("複製好了，可以貼到信件或簡訊","good")}catch(e){toast("複製失敗，請用「預覽」手動複製","bad")}};
+    const pre=el("button",{class:"btn ghost small"},"預覽");pre.onclick=()=>{const pn=openSheet();pn.replaceChildren(el("h3",{},"通知內容預覽"),el("div",{class:"note"},"收件人："+p.name+"　"+(p.email||"（沒有信箱）")),el("label",{class:"f"},"主旨",el("input",{value:n.subject,readonly:true})),el("label",{class:"f"},"內容",el("textarea",{rows:"12",readonly:true},n.body)),el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"關閉")))};
+    const tel=el("a",{class:"btn ghost small",href:"tel:"+String(p.phone||"").replace(/[^\d+]/g,"")},"📞 "+(p.phone||""));
+    const done=el("button",{class:"btn ghost small"},"已通知");done.onclick=()=>{mark();toast("記下來了","good")};
+    list.append(el("div",{class:"item stack"+(n.late.length?" over":"")},el("div",{class:"info"},el("b",{},p.name+(n.late.length?"・逾期 "+n.late.length+" 本":"・快到期 "+n.soon.length+" 本")),
+      el("span",{},(p.email||"沒有信箱")+(last?"・上次通知 "+md(last):"・還沒通知過"))),
+      el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"},mail,pre,copy,tel,done)))});
+  box.append(list);
+}
+
+/* ---------- 列印 ---------- */
+function barcodeSvg(code){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");JsBarcode(s,code,{format:"CODE128",width:2,height:50,displayValue:true,fontSize:14,margin:0});return s}
+function doPrint(node){if(typeof JsBarcode==="undefined"){toast("要連上網路才能產生條碼","bad");return false}$("#print").replaceChildren(node);setTimeout(()=>window.print(),80);return true}
+function printCards(ids){if(!ids.length){toast("請先勾選要印的借閱者","bad");return}
+  if(typeof JsBarcode==="undefined"){toast("要連上網路才能產生條碼","bad");return}
+  doPrint(el("div",{class:"pcards"},...ids.map(id=>{const p=db.patrons[id];return el("div",{class:"pcard"},el("div",{class:"h"},(db.cfg.name||"圖書室")+"・借閱證"),el("div",{class:"n"},p.name),barcodeSvg(id))})))}
+function printLabels(ids){if(!ids.length){toast("請先勾選要印書標的書","bad");return}
+  if(typeof JsBarcode==="undefined"){toast("要連上網路才能產生條碼","bad");return}
+  doPrint(el("div",{class:"plabels"},...ids.map(id=>{const b=db.books[id];return el("div",{class:"plabel"},el("div",{class:"t"},(db.cfg.name||"圖書室")+"・"+b.title),barcodeSvg(id))})))}
+$("#p-print").onclick=()=>printCards([...selPatrons].filter(id=>db.patrons[id]));
+$("#k-print").onclick=()=>printLabels([...selBooks].filter(id=>db.books[id]));
+
+/* ---------- 鏡頭掃描（Chrome 支援） ---------- */
+let camStream=null,camTimer=null;
+function stopCam(){if(camTimer)clearInterval(camTimer);camTimer=null;if(camStream)camStream.getTracks().forEach(t=>t.stop());camStream=null}
+async function scanCam(onCode,keepSheet){
+  if(!("BarcodeDetector" in window)){toast("這個瀏覽器不支援鏡頭掃描，請用 Chrome，或用掃描槍／手打","bad");return}
+  const back=keepSheet?{p:$("#panel").cloneNode(true)}:null;
+  const p=openSheet();const old=keepSheet?[...p.childNodes]:null;
+  const v=el("video",{autoplay:true,playsinline:true,muted:true});
+  const box=el("div",{style:"display:grid;gap:10px"},el("h3",{},"📷 對準條碼"),v,el("div",{class:"note"},"把條碼放在畫面中間，拿穩一點"),el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:()=>{stopCam();if(old){p.replaceChildren(...old)}else closeSheet()}},"取消")));
+  p.replaceChildren(box);
+  try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});v.srcObject=camStream;
+    const det=new BarcodeDetector({formats:["code_128","ean_13","ean_8","code_39","qr_code","upc_a"]});
+    camTimer=setInterval(async()=>{try{const r=await det.detect(v);if(r.length){const code=r[0].rawValue;stopCam();if(old)p.replaceChildren(...old);else closeSheet();onCode(code)}}catch(e){}},300);
+  }catch(e){stopCam();if(old)p.replaceChildren(...old);else closeSheet();toast("打不開鏡頭，請允許使用相機","bad")}
+}
+$("#b-cam").onclick=()=>scanCam(borrowScan);
+$("#r-cam").onclick=()=>scanCam(returnScan);
+
+/* ---------- 掃描輸入框 ---------- */
+$("#b-scan").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const v=e.target.value;e.target.value="";borrowScan(v)}});
+$("#r-scan").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const v=e.target.value;e.target.value="";returnScan(v)}});
+function focusScan(){const v=curView();if(v==="borrow")$("#b-scan").focus();else if(v==="return")$("#r-scan").focus()}
+
+/* ---------- 設定 ---------- */
+$("#open-set").onclick=()=>{
+  const p=openSheet();const c={...db.cfg};
+  const num=(label,key,min,max)=>{const i=el("input",{type:"number",min,max,value:c[key]});i.oninput=()=>c[key]=Number(i.value);return el("label",{class:"f"},label,i)};
+  const nm=el("input",{value:c.name||""});nm.oninput=()=>c.name=nm.value;
+  const ct=el("input",{value:c.contact||"",type:"tel",placeholder:"例如 089-000000"});ct.oninput=()=>c.contact=ct.value;
+  p.replaceChildren(el("h3",{},"⚙️ 設定與備份"),el("label",{class:"f"},"圖書室名稱（印在借閱證、書標、通知信上）",nm),el("div",{class:"row2"},num("一次借幾天","loanDays",1,90),num("每人最多借幾本","maxBooks",1,50)),
+    el("div",{class:"row2"},num("可以續借幾次","maxRenew",0,10),num("到期前幾天開始提醒","remindDays",0,14)),
+    el("div",{class:"row2"},num("逾期每天罰款（元，0＝不罰）","finePerDay",0,1000),num("每本罰款上限（元，0＝不設上限）","fineCap",0,10000)),
+    el("label",{class:"f"},"圖書室聯絡電話（寫在通知信最後）",ct));
+  const sv=el("button",{class:"btn"},"儲存設定");sv.onclick=()=>{const n=(v,d,min)=>Math.max(min,isNaN(v)?d:v);db.cfg={loanDays:n(c.loanDays,14,1),maxBooks:n(c.maxBooks,5,1),maxRenew:n(c.maxRenew,1,0),remindDays:n(c.remindDays,2,0),finePerDay:n(c.finePerDay,5,0),fineCap:n(c.fineCap,0,0),name:(c.name||"圖書室").trim(),contact:(c.contact||"").trim()};save();closeSheet();renderAll();toast("設定存好了","good")};
+  p.append(el("div",{class:"foot"},el("span",{class:"sp"}),sv));
+  p.append(el("h3",{style:"margin-top:8px"},"💾 備份"),el("div",{class:"note"},"試做版的資料只存在這台電腦的瀏覽器裡。清除瀏覽器資料就會不見，記得偶爾下載備份。"));
+  const exp=el("button",{class:"btn ghost"},"下載備份");exp.onclick=()=>{const a=el("a",{href:URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:"application/json"})),download:"圖書室備份_"+today()+".json"});document.body.append(a);a.click();a.remove()};
+  const fi=el("input",{type:"file",accept:".json,application/json",hidden:true});fi.onchange=async()=>{try{const d=JSON.parse(await fi.files[0].text());if(!d.books||!d.patrons||!d.loans)throw 0;db=d;save();closeSheet();renderAll();toast("備份還原好了","good")}catch(e){toast("這個檔案不是圖書室的備份","bad")}};
+  const imp=el("button",{class:"btn ghost"},"從備份還原");imp.onclick=()=>fi.click();
+  const rs=el("button",{class:"btn danger"},"重設成範例資料");twoStep(rs,"重設成範例資料","確定？目前資料會清掉",()=>{db=seed();save();curPatron=null;cart=[];returned=[];closeSheet();renderAll();toast("已經重設成範例資料")});
+  p.append(el("div",{class:"foot"},exp,imp,fi,el("span",{class:"sp"}),rs));
+};
+
+/* ---------- 切換分頁 ---------- */
+const VIEWS=["borrow","return","books","patrons","overview"];
+const curView=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:"borrow"};
+function renderAll(){renderBorrow();renderReturn();renderBooks();renderPatrons();renderOverview()}
+function route(){const v=curView();VIEWS.forEach(k=>{$("#v-"+k).hidden=k!==v});document.querySelectorAll(".tabs a").forEach(a=>a.setAttribute("aria-current",a.dataset.v===v?"page":"false"));renderAll();setTimeout(focusScan,30)}
+window.addEventListener("hashchange",route);
+window.addEventListener("storage",e=>{if(e.key===KEY){db=load();renderAll()}});
+route();
+</script>
+</body>
+</html>
