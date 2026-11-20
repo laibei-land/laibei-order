@@ -84,6 +84,18 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--sea);outline-offset
 
 <script type="module">
 import { firebaseConfig } from "./firebase-config.js";
+/* Google 不讓 LINE／FB／IG 裡面的瀏覽器登入：LINE 自動跳到手機瀏覽器，其他的顯示教學 */
+const UA=navigator.userAgent;
+const IN_APP=/Line\/|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|Threads/i.test(UA);
+if(/Line\//i.test(UA)&&location.search.indexOf("openExternalBrowser")<0){location.replace(location.pathname+"?openExternalBrowser=1"+location.hash)}
+const SHARE_URL=location.origin+location.pathname+"?openExternalBrowser=1";
+const loginError=e=>{const c=(e&&e.code)||"";
+  if(c==="auth/popup-blocked")return "登入視窗被擋住了。請允許這個網站跳出視窗，或改用 Safari／Chrome 打開。";
+  if(c==="auth/popup-closed-by-user"||c==="auth/cancelled-popup-request")return "登入視窗被關掉了，請再按一次「用 Google 登入」。";
+  if(c==="auth/unauthorized-domain")return "這個網址還沒被允許登入，請跟老闆娘說。";
+  if(c==="auth/network-request-failed")return "網路不穩，請確認有網路再試一次。";
+  if(IN_APP||c==="auth/operation-not-supported-in-this-environment"||c==="auth/web-storage-unsupported")return "這裡沒辦法用 Google 登入。請按右上角「⋯」選「用瀏覽器開啟」，或把網址複製到 Safari／Chrome 打開。";
+  return "登入沒有成功（"+(c||"請再試一次")+"）。請改用 Safari／Chrome 打開這個網址再試一次。"};
 const SDK="https://www.gstatic.com/firebasejs/10.12.2/";
 const [app,fs,au]=await Promise.all([import(SDK+"firebase-app.js"),import(SDK+"firebase-firestore.js"),import(SDK+"firebase-auth.js")]);
 const fapp=app.initializeApp(firebaseConfig);const fdb=fs.getFirestore(fapp);const auth=au.getAuth(fapp);
@@ -91,9 +103,11 @@ const $=s=>document.querySelector(s);
 function el(t,a={},...k){const e=document.createElement(t);for(const[x,v]of Object.entries(a)){if(x==="class")e.className=v;else if(x.startsWith("on"))e.addEventListener(x.slice(2),v);else e.setAttribute(x,v)}k.flat().forEach(c=>{if(c!=null&&c!=="")e.append(c)});return e}
 const fmt=t=>t?new Date(t).toLocaleString("zh-TW",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"";
 let unsubs=[];
-$("#myurl").textContent=location.href.split("#")[0];
+$("#myurl").textContent=SHARE_URL;
+if(IN_APP){$("#login-msg").replaceChildren("⚠️ 你現在是在 App 裡面（LINE、FB、IG）打開的，Google 不讓這裡登入。",el("br"),"請按右上角「⋯」選「用瀏覽器開啟」，或按下面的按鈕複製網址，貼到 Safari／Chrome 打開。");
+  const cp=el("button",{class:"btn ghost",type:"button"},"複製網址");cp.onclick=async()=>{try{await navigator.clipboard.writeText(SHARE_URL);cp.textContent="已複製 ✅"}catch(e){cp.textContent=SHARE_URL}};$("#login").append(cp)}
 $("#copy").onclick=async()=>{try{await navigator.clipboard.writeText($("#myurl").textContent);$("#copy").textContent="已複製 ✅"}catch(e){const r=document.createRange();r.selectNodeContents($("#myurl"));getSelection().removeAllRanges();getSelection().addRange(r);$("#copy").textContent="已選取，請按複製"}};
-$("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){$("#login-msg").textContent="登入沒有成功："+(e.code||"請再試一次")}};
+$("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){console.error(e);$("#login-msg").textContent=loginError(e)}};
 
 function twoStep(btn,label,sureLabel,fn){btn.onclick=()=>{if(btn.classList.contains("sure"))fn();else{btn.classList.add("sure");btn.textContent=sureLabel;setTimeout(()=>{btn.classList.remove("sure");btn.textContent=label},4000)}}}
 
@@ -124,10 +138,11 @@ async function guestView(u){
     if(s.exists()){$("#v-guest").hidden=true;$("#v-member").hidden=false;return}
     $("#v-member").hidden=true;$("#v-guest").hidden=false;
     $("#g-text").textContent="你好 "+(u.displayName||"")+"！你的帳號 "+u.email+" 還沒有使用權限。按下面的按鈕送出申請，老闆娘同意後就能使用。";
-  },()=>{}));
+  },e=>{console.error(e);$("#v-member").hidden=true;$("#v-guest").hidden=false;
+    $("#g-text").textContent="你好 "+(u.displayName||"")+"！按下面的按鈕送出申請，老闆娘同意後就能使用。"}));
   const req=fs.doc(fdb,"accessRequests",u.uid);
   unsubs.push(fs.onSnapshot(req,s=>{const st=$("#g-status");if(s.exists()){st.hidden=false;st.textContent="✅ 已經送出申請，請等老闆娘同意（同意後這個畫面會自動更新）。";$("#g-req").hidden=true}else{st.hidden=true;$("#g-req").hidden=false}},()=>{}));
-  $("#g-req").onclick=async()=>{$("#g-req").disabled=true;try{await fs.setDoc(req,{email:u.email||"",name:u.displayName||"",at:Date.now()})}catch(e){$("#g-req").disabled=false;$("#g-status").hidden=false;$("#g-status").textContent="申請沒有送出，請檢查網路再試一次。"}};
+  $("#g-req").onclick=async()=>{$("#g-req").disabled=true;try{await fs.setDoc(req,{email:String(u.email||"").slice(0,200),name:String(u.displayName||"").slice(0,100),at:Date.now()})}catch(e){console.error(e);$("#g-req").disabled=false;$("#g-status").hidden=false;$("#g-status").textContent="申請沒有送出（"+(e.code||"錯誤")+"），請截圖給老闆娘。"}};
 }
 
 au.onAuthStateChanged(auth,async u=>{
