@@ -88,7 +88,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;margin:14px 0 8
 .chips button,.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:14px}
 .chip{background:var(--sand);border-color:transparent}
 .chips button[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:#fff;font-weight:700}
-.chips.who button[aria-pressed="true"]{background:var(--sea);border-color:var(--sea)}
+.chips.pick button[aria-pressed="true"]{background:var(--sea);border-color:var(--sea)}
 .todo-i{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}
 .todo-i input{margin-top:4px;width:18px;height:18px;flex:none;accent-color:var(--good)}
 .todo-i.done span{text-decoration:line-through;color:var(--muted)}
@@ -280,7 +280,7 @@ const closeSheet=()=>{$("#sheet").hidden=true};
 function whoPicker(cur,onPick){
   let val=cur||"";
   const other=el("input",{placeholder:"其他人的名字",value:cfg.people.includes(val)?"":val,style:"max-width:160px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:14px"});
-  const box=el("div",{class:"chips who"});
+  const box=el("div",{class:"chips pick"});
   const draw=()=>{box.replaceChildren(...cfg.people.map(p=>el("button",{type:"button","aria-pressed":String(p===val),onclick:()=>{val=p;other.value="";onPick(val);draw()}},p)),other)};
   other.oninput=()=>{val=other.value.trim();onPick(val);draw();other.focus()};
   draw();return box;
