@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>來杯排班交接</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700&display=swap">
+<style>
+/* 來杯排班＆交接（2026-11-20）：家人輪流顧店的排班、交接紀錄、每日開關店檢查。
+   只有老闆娘和成員能用；資料存在 Firebase 的 shifts／handovers／dailyChecks／shiftConfig */
+:root{
+  --bg:#FBF8F1; --surface:#FFFFFF; --ink:#2B2723; --muted:#7A7068; --line:#E8E1D6;
+  --sea:#2F7A86; --sea-soft:#E3F0F1; --sand:#FAF2CB; --pink:#D9667F;
+  --good:#3E8A5B; --bad:#C2543F;
+  --c0:#DCEFF1; --c0i:#1F5E68; --c1:#F8E1E6; --c1i:#8A3348; --c2:#E5F1E2; --c2i:#2F6A3A;
+  --c3:#F6EBCB; --c3i:#7A5A12; --c4:#E8E3F4; --c4i:#4E3F80; --c5:#EFE9E1; --c5i:#5A5047;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --num:"Outfit","Noto Sans TC",system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#171513; --surface:#211E1B; --ink:#F0EBE3; --muted:#ADA398; --line:#38332D;
+  --sea:#6CC3CF; --sea-soft:#1F3236; --sand:#3A3624; --pink:#F08CA2; --good:#6CC48C; --bad:#EE8A75;
+  --c0:#1F3A3E; --c0i:#9ED9E1; --c1:#3E2329; --c1i:#F4AFC0; --c2:#22362A; --c2i:#A6DDB0;
+  --c3:#3A3220; --c3i:#EDCD7E; --c4:#2D2840; --c4i:#C4B8F0; --c5:#302B26; --c5i:#CFC5BA; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 80px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+header small{display:block;color:var(--sea);font-weight:700;letter-spacing:.12em;font-size:12px}
+header h1{margin:2px 0 4px;font-size:26px;font-weight:900}
+header p{margin:0 0 14px;color:var(--muted)}
+.who{font-size:12px;color:var(--muted);text-align:right;margin:-6px 0 10px}
+.who button{border:0;background:none;color:var(--sea);text-decoration:underline;padding:0 4px;font-size:12px}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;background:var(--sea);color:var(--surface)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn.danger{background:none;color:var(--bad);border:1px solid var(--line)}
+.btn.danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+.msg{background:var(--sand);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.login{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px 16px;text-align:center;display:grid;gap:12px;justify-items:center}
+.login p{margin:0;color:var(--muted)}
+.now{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--sea);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:grid;gap:4px}
+.now .big{font-size:19px;font-weight:900}
+.now .sub{color:var(--muted);font-size:14px}
+.now .todo{margin-top:6px;background:var(--sand);border-radius:10px;padding:8px 10px;font-size:14px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--sea-soft);border-radius:12px;padding:4px;margin-bottom:14px}
+.tabs a{text-align:center;padding:9px 4px;border-radius:9px;font-weight:700;color:var(--sea);text-decoration:none;font-size:15px}
+.tabs a[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.bar .grow{flex:1;min-width:0;font-weight:700;font-size:17px}
+.bar .hint{flex:1;min-width:0;color:var(--muted);font-size:13px}
+h2{font-size:16px;margin:20px 0 8px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.cal .h{text-align:center;font-size:12px;color:var(--muted);padding:2px 0}
+.day{min-height:62px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.day.blank{background:none;border:0}
+.day.today{border:2px solid var(--sea)}
+.day .d{font-family:var(--num);font-size:12px;color:var(--muted);line-height:1.2}
+.day.today .d{color:var(--sea);font-weight:700}
+.tag{display:block;border-radius:5px;padding:1px 3px;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5}
+.off{font-size:11px;color:var(--muted)}
+.c0{background:var(--c0);color:var(--c0i)}.c1{background:var(--c1);color:var(--c1i)}.c2{background:var(--c2);color:var(--c2i)}
+.c3{background:var(--c3);color:var(--c3i)}.c4{background:var(--c4);color:var(--c4i)}.c5{background:var(--c5);color:var(--c5i)}
+.list{display:grid;gap:8px}
+.row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;width:100%}
+.row .pill{flex:none;border-radius:999px;padding:3px 10px;font-weight:700;font-size:14px}
+.row .info{flex:1;min-width:0}
+.row .info b{display:block}
+.row .info span{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.row.past{opacity:.7}
+.empty{text-align:center;color:var(--muted);padding:22px 10px;background:var(--surface);border:1px dashed var(--line);border-radius:12px}
+details summary{cursor:pointer;color:var(--muted);font-size:14px;margin:14px 0 8px}
+.hcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:8px}
+.hcard .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hcard .top b{font-size:16px}
+.hcard .top .sp{flex:1}
+.hcard .line{font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap}
+.hcard .line .k{color:var(--muted);font-size:12px;display:block;white-space:normal}
+.hcard .by{font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button,.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:14px}
+.chip{background:var(--sand);border-color:transparent}
+.chips button[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:#fff;font-weight:700}
+.chips.who button[aria-pressed="true"]{background:var(--sea);border-color:var(--sea)}
+.todo-i{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}
+.todo-i input{margin-top:4px;width:18px;height:18px;flex:none;accent-color:var(--good)}
+.todo-i.done span{text-decoration:line-through;color:var(--muted)}
+.ckcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.ckcard .t{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ckcard .t b{font-size:17px;flex:1}
+.prog{font-family:var(--num);font-weight:700;color:var(--muted)}
+.prog.full{color:var(--good)}
+.ck{display:flex;gap:10px;align-items:center;padding:9px 4px;border-top:1px solid var(--line);cursor:pointer;font-size:15px}
+.ck input{width:22px;height:22px;flex:none;accent-color:var(--good)}
+.ck.done span{color:var(--muted);text-decoration:line-through}
+.ckby{font-size:12px;color:var(--muted);margin-top:6px}
+.daynav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.daynav input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(20,16,12,.45);display:flex;align-items:flex-end;justify-content:center}
+.panel{background:var(--bg);width:100%;max-width:760px;max-height:92%;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px}
+.panel h3{margin:0;font-size:20px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+label.f input,label.f select,label.f textarea{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 10px;color:var(--ink);font-size:15px;min-width:0;width:100%}
+label.f textarea{min-height:76px;resize:vertical}
+.fl{font-size:13px;color:var(--muted);font-weight:500;margin-bottom:4px}
+.note{background:var(--sand);border-radius:10px;padding:8px 10px;font-size:13px}
+.warn{color:var(--bad);font-size:13px}
+.foot{display:flex;gap:8px;flex-wrap:wrap}
+.foot .sp{flex:1}
+.setlink{margin-top:28px;text-align:center;font-size:14px}
+.setlink a,.links a{color:var(--sea);font-weight:700}
+.links{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:10px;font-size:14px}
+@media (max-width:420px){.day{min-height:54px}.tag{font-size:10px;padding:0 2px}.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <small>來杯！・LAI BEI</small>
+    <h1>排班＆交接</h1>
+    <p>家人輪流顧店：誰顧哪幾天、交接時留給下一位的話、每天開店關店打勾。</p>
+  </header>
+  <div class="msg" id="msg" hidden></div>
+
+  <div id="login" class="login">
+    <b style="font-size:18px">請先登入</b>
+    <p id="login-msg">這是店裡的資料，只有老闆娘同意過的家人能看。</p>
+    <button class="btn" id="signin" style="max-width:280px;width:100%">用 Google 登入</button>
+  </div>
+
+  <div id="app" hidden>
+    <div class="who" id="who"></div>
+    <div class="now" id="now"><div class="sub">讀取中…</div></div>
+    <nav class="tabs">
+      <a href="#shifts" id="t-shifts">📅 排班</a>
+      <a href="#handover" id="t-handover">📝 交接</a>
+      <a href="#check" id="t-check">✅ 每日檢查</a>
+    </nav>
+
+    <main id="v-shifts">
+      <div class="bar">
+        <button class="btn ghost small" id="m-prev" aria-label="上個月">‹</button>
+        <span class="grow num" id="m-title" style="text-align:center"></span>
+        <button class="btn ghost small" id="m-next" aria-label="下個月">›</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <div class="bar" style="margin-top:14px"><span class="hint">點日曆上的日子也可以排班。10～4 月週一公休。</span><button class="btn" id="new-s">＋ 排一段</button></div>
+      <div class="list" id="slist"></div>
+      <details id="spast-box" hidden><summary>過去的排班</summary><div class="list" id="spast"></div></details>
+    </main>
+
+    <main id="v-handover" hidden>
+      <div class="bar"><span class="hint">換人顧店時寫一份：錢、快沒貨的東西、發生的事、留給下一位的待辦。</span><button class="btn" id="new-h">＋ 寫交接</button></div>
+      <div class="list" id="hlist"></div>
+    </main>
+
+    <main id="v-check" hidden>
+      <div class="daynav">
+        <button class="btn ghost small" id="d-prev" aria-label="前一天">‹</button>
+        <input type="date" id="d-pick" aria-label="日期">
+        <button class="btn ghost small" id="d-next" aria-label="後一天">›</button>
+      </div>
+      <div id="ckbox"></div>
+    </main>
+
+    <div class="setlink"><a href="#" id="open-set">⚙️ 設定：顧店的人、檢查清單、常叫貨的東西</a></div>
+    <div class="links"><a href="./#kitchen">👩‍🍳 後台</a><a href="cost.html">🧮 成本計算機</a><a href="team.html">👥 成員管理</a></div>
+  </div>
+</div>
+<div class="sheet" id="sheet" hidden><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+/* Google 不讓 LINE／FB／IG 裡面的瀏覽器登入：LINE 自動跳到手機瀏覽器，其他的顯示教學 */
+const UA=navigator.userAgent;
+const IN_APP=/Line\/|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|Threads/i.test(UA);
+if(/Line\//i.test(UA)&&location.search.indexOf("openExternalBrowser")<0){location.replace(location.pathname+"?openExternalBrowser=1"+location.hash)}
+const loginError=e=>{const c=(e&&e.code)||"";
+  if(c==="auth/popup-blocked")return "登入視窗被擋住了。請允許這個網站跳出視窗，或改用 Safari／Chrome 打開。";
+  if(c==="auth/popup-closed-by-user"||c==="auth/cancelled-popup-request")return "登入視窗被關掉了，請再按一次「用 Google 登入」。";
+  if(c==="auth/network-request-failed")return "網路不穩，請確認有網路再試一次。";
+  if(IN_APP||c==="auth/operation-not-supported-in-this-environment"||c==="auth/web-storage-unsupported")return "這裡沒辦法用 Google 登入。請按右上角「⋯」選「用瀏覽器開啟」，或把網址複製到 Safari／Chrome 打開。";
+  return "登入沒有成功（"+(c||"請再試一次")+"）。請改用 Safari／Chrome 打開這個網址再試一次。"};
+if(IN_APP)document.getElementById("login-msg").textContent="⚠️ 你現在是在 App 裡面（LINE、FB、IG）打開的，Google 不讓這裡登入。請按右上角「⋯」選「用瀏覽器開啟」，或把網址複製到 Safari／Chrome 打開。";
+const SDK="https://www.gstatic.com/firebasejs/10.12.2/";
+const [app,fs,au]=await Promise.all([import(SDK+"firebase-app.js"),import(SDK+"firebase-firestore.js"),import(SDK+"firebase-auth.js")]);
+const fapp=app.initializeApp(firebaseConfig);const fdb=fs.getFirestore(fapp);const auth=au.getAuth(fapp);
+
+const SH="shifts",HO="handovers",CK="dailyChecks",CF="shiftConfig";
+/* 預設清單（老闆娘可以在「⚙️ 設定」改） */
+const DEF={
+  people:["Jenny","爸爸"],
+  openList:["開燈、開冷氣","確認冰箱溫度","煮茶（紅茶、綠茶、烏龍）","備冰塊","補杯子、封膜、吸管","錢櫃放零錢","打開點餐後台"],
+  closeList:["剩下的茶倒掉、茶桶洗乾淨","雪克杯、器具洗好","擦檯面、桌子","倒垃圾、做回收","冰箱門關好","錢櫃現金點好","關封口機、熱水機","關燈、關冷氣","鎖門"],
+  lowItems:["紅茶葉","綠茶葉","烏龍茶葉","鮮奶","奶精","糖","黑糖","冰塊","珍珠","椰果","寒天","檸檬","M 杯","L 杯","封膜","吸管","袋子","零錢"]
+};
+let cfg={...DEF},shifts={},hands={},checks={},unsubs=[],me={name:"",email:""};
+let month=new Date();month.setDate(1);
+const $=s=>document.querySelector(s);
+function el(t,a={},...k){const e=document.createElement(t);for(const[x,v]of Object.entries(a)){if(x==="class")e.className=v;else if(x.startsWith("on"))e.addEventListener(x.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(x,v===true?"":v)}k.flat().forEach(c=>{if(c!=null&&c!=="")e.append(c)});return e}
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today=()=>ymd(new Date());
+const toDate=s=>{const p=String(s).split("-").map(Number);return new Date(p[0],p[1]-1,p[2])};
+const addDays=(s,n)=>{const d=toDate(s);d.setDate(d.getDate()+n);return ymd(d)};
+const WK="日一二三四五六";
+const md=s=>{const d=toDate(s);return (d.getMonth()+1)+"/"+d.getDate()};
+const mdw=s=>md(s)+"（"+WK[toDate(s).getDay()]+"）";
+const diffDays=(a,b)=>Math.round((toDate(b)-toDate(a))/864e5);
+const isOff=s=>{const d=toDate(s);const m=d.getMonth()+1;return d.getDay()===1&&(m>=10||m<=4)};
+const money=n=>"$"+Math.round(Number(n)||0).toLocaleString("en-US");
+const colorOf=name=>{const i=cfg.people.indexOf(name);return "c"+(i<0?5:i%6)};
+const sortedShifts=()=>Object.entries(shifts).map(([id,s])=>({id,...s})).filter(s=>s.start&&s.end).sort((a,b)=>a.start.localeCompare(b.start)||a.who.localeCompare(b.who));
+const whoOn=d=>sortedShifts().filter(x=>x.start<=d&&x.end>=d);
+const nextAfter=d=>sortedShifts().find(x=>x.start>d);
+const sortedHands=()=>Object.entries(hands).map(([id,h])=>({id,...h})).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.at||0)-(a.at||0));
+const sayMsg=t=>{const m=$("#msg");m.textContent=t;m.hidden=!t};
+const ref=(c,id)=>fs.doc(fdb,c,id);
+const save=(c,id,d,merge)=>fs.setDoc(ref(c,id),d,merge?{merge:true}:{}).catch(e=>{console.error(e);sayMsg("剛剛的修改沒有存到，請檢查網路再試一次。");throw e});
+const remove=(c,id)=>fs.deleteDoc(ref(c,id)).catch(()=>sayMsg("刪除沒有成功，請再試一次。"));
+function twoStep(btn,label,sureLabel,fn){btn.onclick=()=>{if(btn.classList.contains("sure"))fn();else{btn.classList.add("sure");btn.textContent=sureLabel;setTimeout(()=>{btn.classList.remove("sure");btn.textContent=label},4000)}}}
+const lines=t=>String(t||"").split("\n").map(x=>x.trim()).filter(Boolean);
+
+/* ---------- 上面的「今天誰顧店」 ---------- */
+function renderNow(){
+  const t=today(),on=whoOn(t),nx=nextAfter(t),box=$("#now");box.replaceChildren();
+  if(on.length){
+    const s=on[0],left=diffDays(t,s.end);
+    box.append(el("div",{class:"big"},"🏠 今天顧店：",on.map(x=>x.who).join("、")));
+    box.append(el("div",{class:"sub"},md(s.start)+"～"+md(s.end)+"・"+(left===0?"今天是最後一天，記得寫交接 📝":"還有 "+left+" 天")+(isOff(t)?"・今天週一公休":"")));
+  }else{
+    box.append(el("div",{class:"big"},isOff(t)?"🏠 今天週一公休":"🏠 今天還沒排人"));
+  }
+  if(nx)box.append(el("div",{class:"sub"},"下一位："+nx.who+"，"+mdw(nx.start)+" 開始"));
+  const last=sortedHands()[0];
+  const open=last?(last.todos||[]).filter(x=>!x.done):[];
+  if(open.length)box.append(el("div",{class:"todo"},"📌 "+(last.from||"")+" 留給你的待辦還有 "+open.length+" 件（看「📝 交接」）"));
+}
+
+/* ---------- 排班 ---------- */
+function renderCal(){
+  const y=month.getFullYear(),m=month.getMonth();
+  $("#m-title").textContent=y+" 年 "+(m+1)+" 月";
+  const cal=$("#cal");cal.replaceChildren(...[..."日一二三四五六"].map(w=>el("div",{class:"h"},w)));
+  const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),t=today();
+  for(let i=0;i<first;i++)cal.append(el("div",{class:"day blank"}));
+  for(let d=1;d<=days;d++){
+    const s=y+"-"+pad(m+1)+"-"+pad(d),on=whoOn(s);
+    const cell=el("button",{class:"day"+(s===t?" today":""),"aria-label":(m+1)+"月"+d+"日 "+(on.map(x=>x.who).join("、")||"還沒排")},el("span",{class:"d"},String(d)));
+    on.forEach(x=>cell.append(el("span",{class:"tag "+colorOf(x.who)},x.who)));
+    if(isOff(s))cell.append(el("span",{class:"off"},"公休"));
+    cell.onclick=()=>on.length?shiftEditor(on[0].id):shiftEditor(null,s);
+    cal.append(cell);
+  }
+}
+function shiftRow(s,past){
+  const n=diffDays(s.start,s.end)+1;
+  return el("button",{class:"row"+(past?" past":""),onclick:()=>shiftEditor(s.id)},
+    el("span",{class:"pill "+colorOf(s.who)},s.who),
+    el("span",{class:"info"},el("b",{class:"num"},mdw(s.start)+" ～ "+mdw(s.end)),el("span",{},"共 "+n+" 天"+(s.note?"・"+s.note:""))));
+}
+function renderShifts(){
+  renderCal();
+  const t=today(),all=sortedShifts(),cur=all.filter(s=>s.end>=t),past=all.filter(s=>s.end<t).reverse().slice(0,20);
+  const box=$("#slist");box.replaceChildren();
+  if(!cur.length)box.append(el("div",{class:"empty"},"接下來還沒排人。按「＋ 排一段」，選誰顧、從哪天到哪天。"));
+  cur.forEach(s=>box.append(shiftRow(s,false)));
+  $("#spast-box").hidden=!past.length;$("#spast").replaceChildren(...past.map(s=>shiftRow(s,true)));
+}
+function openSheet(){$("#sheet").hidden=false;return $("#panel")}
+const closeSheet=()=>{$("#sheet").hidden=true};
+function whoPicker(cur,onPick){
+  let val=cur||"";
+  const other=el("input",{placeholder:"其他人的名字",value:cfg.people.includes(val)?"":val,style:"max-width:160px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:14px"});
+  const box=el("div",{class:"chips who"});
+  const draw=()=>{box.replaceChildren(...cfg.people.map(p=>el("button",{type:"button","aria-pressed":String(p===val),onclick:()=>{val=p;other.value="";onPick(val);draw()}},p)),other)};
+  other.oninput=()=>{val=other.value.trim();onPick(val);draw();other.focus()};
+  draw();return box;
+}
+function shiftEditor(id,start){
+  const isNew=!id;id=id||"s"+Date.now();
+  const s0=shifts[id];
+  const last=sortedShifts().slice(-1)[0];
+  const d={who:s0?s0.who:"",start:s0?s0.start:(start||(last&&last.end>=today()?addDays(last.end,1):today())),end:"",note:s0?s0.note||"":""};
+  d.end=s0?s0.end:addDays(d.start,9);
+  const p=openSheet();p.replaceChildren(el("h3",{},isNew?"排一段顧店":"改這段排班"));
+  p.append(el("div",{},el("div",{class:"fl"},"誰顧店"),whoPicker(d.who,v=>{d.who=v;check()})));
+  const st=el("input",{type:"date",value:d.start}),en=el("input",{type:"date",value:d.end});
+  const info=el("div",{class:"note"}),err=el("div",{class:"warn"});
+  const check=()=>{d.start=st.value;d.end=en.value;err.textContent="";info.hidden=true;
+    if(!d.start||!d.end)return;
+    if(d.end<d.start){err.textContent="結束日要在開始日之後。";return}
+    const n=diffDays(d.start,d.end)+1;let offs=0;for(let x=d.start;x<=d.end;x=addDays(x,1))if(isOff(x))offs++;
+    const ov=sortedShifts().filter(x=>x.id!==id&&x.start<=d.end&&x.end>=d.start&&x.who!==d.who);
+    info.hidden=false;info.textContent="共 "+n+" 天"+(offs?"（其中 "+offs+" 天週一公休）":"")+(ov.length?"。⚠️ 跟 "+ov.map(x=>x.who+" "+md(x.start)+"～"+md(x.end)).join("、")+" 重疊，兩個人一起顧就沒關係":"");};
+  st.onchange=()=>{if(en.value<st.value)en.value=addDays(st.value,9);check()};en.onchange=check;
+  p.append(el("div",{class:"row2"},el("label",{class:"f"},"開始（第一天）",st),el("label",{class:"f"},"結束（最後一天）",en)));
+  const note=el("input",{value:d.note,placeholder:"例如：11/15 下午才到、颱風可能停船"});note.oninput=()=>d.note=note.value;
+  p.append(info,el("label",{class:"f"},"備註（可以不寫）",note),err);
+  const sv=el("button",{class:"btn"},"儲存");
+  sv.onclick=async()=>{check();if(!d.who){err.textContent="請選誰顧店。";return}if(err.textContent)return;
+    sv.disabled=true;try{await save(SH,id,{who:d.who.slice(0,30),start:d.start,end:d.end,note:d.note.trim().slice(0,200),by:me.name,at:Date.now()});closeSheet()}catch(e){sv.disabled=false;err.textContent="沒有存到，請檢查網路再按一次。"}};
+  const del=el("button",{class:"btn danger"},"刪除");twoStep(del,"刪除","確定刪除？",()=>{remove(SH,id);closeSheet()});
+  p.append(el("div",{class:"foot"},isNew?"":del,el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消"),sv));
+  check();
+}
+
+/* ---------- 交接 ---------- */
+function renderHands(){
+  const box=$("#hlist");box.replaceChildren();const list=sortedHands();
+  if(!list.length){box.append(el("div",{class:"empty"},"還沒有交接紀錄。換人顧店那天，按「＋ 寫交接」。"));return}
+  list.forEach((h,i)=>{
+    const c=el("div",{class:"hcard"});
+    c.append(el("div",{class:"top"},el("b",{class:"num"},mdw(h.date)),el("span",{class:"pill tag "+colorOf(h.from),style:"display:inline-block;font-size:13px;padding:1px 8px"},h.from||"?"),"→",el("span",{class:"pill tag "+colorOf(h.to),style:"display:inline-block;font-size:13px;padding:1px 8px"},h.to||"?"),el("span",{class:"sp"}),el("button",{class:"btn ghost small",onclick:()=>handEditor(h.id)},"編輯")));
+    const m=[];if(h.cash!=null&&h.cash!=="")m.push("錢櫃現金 "+money(h.cash));if(h.sales!=null&&h.sales!=="")m.push("這段營業額 "+money(h.sales));
+    if(m.length||h.moneyNote)c.append(el("div",{class:"line"},el("span",{class:"k"},"💰 錢"),m.join("・")+(h.moneyNote?(m.length?"\n":"")+h.moneyNote:"")));
+    const low=(h.low||[]).concat(h.lowOther?[h.lowOther]:[]);
+    if(low.length)c.append(el("div",{},el("div",{class:"fl"},"🛒 快沒貨，要叫貨"),el("div",{class:"chips"},...low.map(x=>el("span",{class:"chip"},x)))));
+    if(h.events)c.append(el("div",{class:"line"},el("span",{class:"k"},"📌 發生的事"),h.events));
+    if((h.todos||[]).length){
+      const tb=el("div",{style:"display:grid;gap:6px"},el("div",{class:"fl",style:"margin:0"},"☑️ 留給下一位的待辦（做完就打勾）"));
+      h.todos.forEach((t,ti)=>{const cb=el("input",{type:"checkbox"});cb.checked=!!t.done;
+        cb.onchange=()=>{const todos=h.todos.map((x,j)=>j===ti?{...x,done:cb.checked,doneBy:cb.checked?me.name:""}:x);save(HO,h.id,{todos},true)};
+        tb.append(el("label",{class:"todo-i"+(t.done?" done":"")},cb,el("span",{},t.t+(t.done&&t.doneBy?"（"+t.doneBy+" 做完了）":""))))});
+      c.append(tb);
+    }
+    const ck=checks[h.date];const tot=cfg.closeList.length;const dn=ck?(ck.close||[]).filter(x=>cfg.closeList.includes(x)).length:0;
+    c.append(el("div",{class:"by"},"關店檢查 "+dn+"/"+tot+(dn>=tot&&tot?" ✅":"")+"・"+(h.by||"")+" 寫的"));
+    if(i===0)c.style.borderColor="var(--sea)";
+    box.append(c);
+  });
+}
+async function ordersSales(fromDay,toDay){
+  const a=toDate(fromDay).getTime(),b=toDate(addDays(toDay,1)).getTime();
+  const s=await fs.getDocs(fs.query(fs.collection(fdb,"orders"),fs.where("paidAt",">=",a),fs.where("paidAt","<",b)));
+  let n=0,sum=0;s.forEach(d=>{const o=d.data();if(o.status==="cooking"||o.status==="done"){n++;sum+=Number(o.total)||0}});return{n,sum};
+}
+function handEditor(id){
+  const isNew=!id;id=id||"h"+Date.now();
+  const h0=hands[id];const t=today();const on=whoOn(t)[0];const nx=nextAfter(t);
+  const d=h0?JSON.parse(JSON.stringify(h0)):{date:t,from:on?on.who:"",to:nx?nx.who:"",cash:"",sales:"",moneyNote:"",low:[],lowOther:"",events:"",todos:[]};
+  const p=openSheet();p.replaceChildren(el("h3",{},isNew?"寫交接":"改交接"));
+  const dt=el("input",{type:"date",value:d.date});dt.onchange=()=>{d.date=dt.value;drawCk()};
+  p.append(el("label",{class:"f"},"交接日期",dt));
+  p.append(el("div",{},el("div",{class:"fl"},"交出去的人（顧完的）"),whoPicker(d.from,v=>d.from=v)));
+  p.append(el("div",{},el("div",{class:"fl"},"接手的人（下一位）"),whoPicker(d.to,v=>d.to=v)));
+  const cash=el("input",{type:"number",inputmode:"numeric",value:d.cash,placeholder:"點完錢櫃的錢"});cash.oninput=()=>d.cash=cash.value;
+  const sales=el("input",{type:"number",inputmode:"numeric",value:d.sales,placeholder:"這段時間賣多少"});sales.oninput=()=>d.sales=sales.value;
+  p.append(el("div",{class:"row2"},el("label",{class:"f"},"💰 錢櫃現金（元）",cash),el("label",{class:"f"},"這段營業額（元）",sales)));
+  const sres=el("div",{class:"note",hidden:true});
+  const sbtn=el("button",{class:"btn ghost small",type:"button"},"📲 帶入點餐網站算的營業額");
+  sbtn.onclick=async()=>{
+    const seg=sortedShifts().filter(x=>x.who===d.from&&x.start<=d.date&&x.end>=addDays(d.date,-1)).pop();
+    const prev=sortedHands().find(x=>x.id!==id&&x.date<d.date);
+    const from=seg?seg.start:(prev?prev.date:d.date);
+    sbtn.disabled=true;sres.hidden=false;sres.textContent="計算中…";
+    try{const r=await ordersSales(from,d.date);d.sales=String(r.sum);sales.value=r.sum;
+      sres.textContent=md(from)+"～"+md(d.date)+" 點餐網站已付款 "+r.n+" 單，共 "+money(r.sum)+"（只算客人用點餐網站點的單，現場口頭點的要自己加）"}
+    catch(e){console.error(e);sres.textContent="算不出來（"+(e.code||"錯誤")+"），請自己填。"}
+    sbtn.disabled=false};
+  p.append(el("div",{},sbtn),sres);
+  const mn=el("input",{value:d.moneyNote||"",placeholder:"例如：拿走 $5,000 存銀行、錢櫃留 $2,000 零錢"});mn.oninput=()=>d.moneyNote=mn.value;
+  p.append(el("label",{class:"f"},"錢的備註",mn));
+  const lowBox=el("div",{class:"chips"});
+  const drawLow=()=>lowBox.replaceChildren(...cfg.lowItems.concat((d.low||[]).filter(x=>!cfg.lowItems.includes(x))).map(x=>el("button",{type:"button","aria-pressed":String(d.low.includes(x)),onclick:()=>{d.low=d.low.includes(x)?d.low.filter(y=>y!==x):d.low.concat([x]);drawLow()}},x)));
+  drawLow();
+  const lo=el("input",{value:d.lowOther||"",placeholder:"其他（例如：桂花釀剩半罐）"});lo.oninput=()=>d.lowOther=lo.value;
+  p.append(el("div",{},el("div",{class:"fl"},"🛒 快沒貨、要叫貨的（點一下選）"),lowBox,el("label",{class:"f",style:"margin-top:8px"},lo)));
+  const ev=el("textarea",{placeholder:"例如：製冰機聲音怪怪的、有團客說明天會來、颱風停船兩天"},d.events||"");ev.oninput=()=>d.events=ev.value;
+  p.append(el("label",{class:"f"},"📌 發生的事",ev));
+  const td=el("textarea",{placeholder:"一行一件，例如：\n週三打電話叫鮮奶\n冰箱後面要清"},(d.todos||[]).map(x=>x.t).join("\n"));
+  p.append(el("label",{class:"f"},"☑️ 留給下一位的待辦（一行一件，下一位做完可以打勾）",td));
+  const ckn=el("div",{class:"note"});
+  const drawCk=()=>{const ck=checks[d.date];const tot=cfg.closeList.length;const done=ck?(ck.close||[]).filter(x=>cfg.closeList.includes(x)):[];
+    const miss=cfg.closeList.filter(x=>!done.includes(x));
+    ckn.textContent=done.length>=tot?"✅ "+md(d.date)+" 關店檢查都打勾了":"關店檢查 "+done.length+"/"+tot+"，還沒打勾："+miss.join("、")+"（到「✅ 每日檢查」打勾）"};
+  drawCk();p.append(ckn);
+  const err=el("div",{class:"warn"});p.append(err);
+  const sv=el("button",{class:"btn"},"儲存");
+  sv.onclick=async()=>{if(!d.date){err.textContent="請選交接日期。";return}if(!d.from){err.textContent="請選交出去的人。";return}
+    const old=d.todos||[];const todos=lines(td.value).slice(0,30).map(x=>{const o=old.find(y=>y.t===x);return o?o:{t:x.slice(0,200),done:false}});
+    const num=v=>v===""||v==null?"":Number(v)||0;
+    const data={date:d.date,from:d.from.slice(0,30),to:(d.to||"").slice(0,30),cash:num(d.cash),sales:num(d.sales),moneyNote:String(d.moneyNote||"").slice(0,300),
+      low:d.low.slice(0,40),lowOther:String(d.lowOther||"").slice(0,200),events:String(d.events||"").slice(0,2000),todos,
+      by:h0?h0.by:me.name,at:h0?h0.at:Date.now(),editedAt:Date.now()};
+    sv.disabled=true;try{await save(HO,id,data);closeSheet()}catch(e){sv.disabled=false;err.textContent="沒有存到，請檢查網路再按一次。"}};
+  const del=el("button",{class:"btn danger"},"刪除");twoStep(del,"刪除","確定刪除？",()=>{remove(HO,id);closeSheet()});
+  p.append(el("div",{class:"foot"},isNew?"":del,el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消"),sv));
+}
+
+/* ---------- 每日檢查 ---------- */
+let ckDay=today();
+function renderChecks(){
+  $("#d-pick").value=ckDay;
+  const box=$("#ckbox");box.replaceChildren();
+  const on=whoOn(ckDay);
+  box.append(el("div",{class:"note",style:"margin-bottom:12px"},mdw(ckDay)+(ckDay===today()?"（今天）":"")+"・"+(on.length?on.map(x=>x.who).join("、")+" 顧店":"還沒排人")+(isOff(ckDay)?"・週一公休":"")));
+  const ck=checks[ckDay]||{};
+  [["open","☀️ 開店",cfg.openList],["close","🌙 關店",cfg.closeList]].forEach(([k,title,list])=>{
+    const done=(ck[k]||[]).filter(x=>list.includes(x));
+    const card=el("div",{class:"ckcard"},el("div",{class:"t"},el("b",{},title),el("span",{class:"prog"+(done.length>=list.length&&list.length?" full":"")},done.length+"/"+list.length)));
+    list.forEach(item=>{const cb=el("input",{type:"checkbox"});cb.checked=done.includes(item);
+      cb.onchange=()=>{const cur=(checks[ckDay]&&checks[ckDay][k])||[];const nv=cb.checked?Array.from(new Set(cur.concat([item]))):cur.filter(x=>x!==item);
+        checks[ckDay]={...(checks[ckDay]||{}),[k]:nv,[k+"By"]:me.name};renderChecks();
+        save(CK,ckDay,{[k]:nv,[k+"By"]:me.name,[k+"At"]:Date.now()},true)};
+      card.append(el("label",{class:"ck"+(cb.checked?" done":"")},cb,el("span",{},item)))});
+    if(ck[k+"By"])card.append(el("div",{class:"ckby"},ck[k+"By"]+" 打勾的"));
+    box.append(card);
+  });
+}
+$("#d-pick").onchange=()=>{if($("#d-pick").value){ckDay=$("#d-pick").value;renderChecks()}};
+$("#d-prev").onclick=()=>{ckDay=addDays(ckDay,-1);renderChecks()};
+$("#d-next").onclick=()=>{ckDay=addDays(ckDay,1);renderChecks()};
+
+/* ---------- 設定 ---------- */
+function settings(){
+  const p=openSheet();p.replaceChildren(el("h3",{},"⚙️ 設定"),el("div",{class:"note"},"每個欄位一行一個。改完按儲存，大家的畫面會一起更新。"));
+  const ta=(label,key)=>{const t=el("textarea",{rows:String(Math.min(10,Math.max(3,cfg[key].length+1)))},cfg[key].join("\n"));p.append(el("label",{class:"f"},label,t));return t};
+  const a=ta("👥 顧店的人（排班時可以直接點選；排前面的顏色固定）","people"),b=ta("☀️ 開店檢查","openList"),c=ta("🌙 關店檢查","closeList"),d=ta("🛒 常叫貨的東西（交接時點選）","lowItems");
+  const err=el("div",{class:"warn"});p.append(err);
+  const sv=el("button",{class:"btn"},"儲存");
+  sv.onclick=async()=>{const nv={people:lines(a.value).slice(0,20),openList:lines(b.value).slice(0,40),closeList:lines(c.value).slice(0,40),lowItems:lines(d.value).slice(0,60)};
+    if(!nv.people.length){err.textContent="至少要有一個顧店的人。";return}
+    sv.disabled=true;try{await save(CF,"main",nv);closeSheet()}catch(e){sv.disabled=false;err.textContent="沒有存到，請再按一次。"}};
+  p.append(el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消"),sv));
+}
+$("#open-set").onclick=e=>{e.preventDefault();settings()};
+
+/* ---------- 切換分頁、畫面 ---------- */
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+$("#m-prev").onclick=()=>{month.setMonth(month.getMonth()-1);renderCal()};
+$("#m-next").onclick=()=>{month.setMonth(month.getMonth()+1);renderCal()};
+$("#new-s").onclick=()=>shiftEditor(null);
+$("#new-h").onclick=()=>handEditor(null);
+function route(){const v=location.hash==="#handover"?"handover":location.hash==="#check"?"check":"shifts";
+  ["shifts","handover","check"].forEach(k=>{$("#v-"+k).hidden=k!==v;$("#t-"+k).setAttribute("aria-current",k===v?"page":"false")})}
+window.addEventListener("hashchange",route);route();
+const renderAll=()=>{renderNow();renderShifts();renderHands();renderChecks()};
+
+$("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){console.error(e);$("#login-msg").textContent=loginError(e)}};
+au.onAuthStateChanged(auth,u=>{
+  unsubs.forEach(f=>f());unsubs=[];shifts={};hands={};checks={};
+  if(!u){$("#login").hidden=false;$("#app").hidden=true;return}
+  me={name:String(u.displayName||u.email||"").slice(0,30),email:u.email||""};
+  $("#login").hidden=true;$("#app").hidden=false;
+  $("#who").replaceChildren("登入：",u.email||"",el("button",{onclick:()=>au.signOut(auth)},"登出"));
+  const denied=e=>{console.error(e);if(e.code==="permission-denied"){const m=$("#msg");m.replaceChildren("這個 Google 帳號還沒有權限看排班。",el("a",{href:"team.html",style:"color:var(--sea);font-weight:700"},"按這裡申請使用"),"，老闆娘同意後就能用。");m.hidden=false;$("#app").hidden=true}else sayMsg("暫時讀不到資料，請檢查網路後重新整理。")};
+  unsubs.push(fs.onSnapshot(ref(CF,"main"),s=>{const c=s.exists()?s.data():{};cfg={people:c.people&&c.people.length?c.people:DEF.people,openList:c.openList||DEF.openList,closeList:c.closeList||DEF.closeList,lowItems:c.lowItems||DEF.lowItems};renderAll()},denied));
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,SH),s=>{shifts={};s.forEach(d=>shifts[d.id]=d.data());sayMsg("");renderAll()},denied));
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,HO),s=>{hands={};s.forEach(d=>hands[d.id]=d.data());renderNow();renderHands()},denied));
+  unsubs.push(fs.onSnapshot(fs.collection(fdb,CK),s=>{checks={};s.forEach(d=>checks[d.id]=d.data());renderHands();renderChecks()},denied));
+});
+</script>
+</body>
+</html>
