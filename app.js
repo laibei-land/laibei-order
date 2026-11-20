@@ -3,6 +3,9 @@
 import { firebaseConfig } from "./firebase-config.js";
 
 const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
+/* 後台要 Google 登入；LINE／FB／IG 裡面的瀏覽器不能登入，LINE 開後台時自動跳到手機瀏覽器 */
+const IN_APP = /Line\/|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|Threads/i.test(navigator.userAgent);
+if (/Line\//i.test(navigator.userAgent) && location.hash === "#kitchen" && location.search.indexOf("openExternalBrowser") < 0) location.replace(location.pathname + "?openExternalBrowser=1#kitchen");
 const configured = firebaseConfig.apiKey && firebaseConfig.apiKey !== "貼上";
 let F = null;   // Firebase 函式
 let fdb = null, auth = null;
@@ -217,7 +220,8 @@ if(configured){
     F={...fs,...au};
     const fapp=app.initializeApp(firebaseConfig);
     fdb=fs.getFirestore(fapp);auth=au.getAuth(fapp);
-    $("#k-signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){console.error(e);$("#k-login-msg").textContent="登入沒有成功："+(e.code||"請再試一次")}};
+    $("#k-signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){console.error(e);const c=e.code||"";
+      $("#k-login-msg").textContent=c==="auth/popup-closed-by-user"?"登入視窗被關掉了，請再按一次。":(IN_APP||c==="auth/operation-not-supported-in-this-environment"||c==="auth/popup-blocked")?"這裡沒辦法用 Google 登入。請按右上角「⋯」選「用瀏覽器開啟」，或把網址複製到 Safari／Chrome 打開。":"登入沒有成功（"+(c||"請再試一次")+"）。請改用 Safari／Chrome 打開再試一次。"}};
     au.onAuthStateChanged(auth,()=>{if(kUnsub){kUnsub();kUnsub=null}allOrders={};if(location.hash==="#kitchen")startKitchen()});
     myIds.forEach(x=>watchMine(x.id));
   }catch(e){console.error(e);F=null;const n=$("#demo-note");n.textContent="連不上點餐系統，請檢查網路後重新整理。";n.hidden=false}
