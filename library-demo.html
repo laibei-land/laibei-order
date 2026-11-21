@@ -115,6 +115,9 @@ video{width:100%;border-radius:12px;background:#000}
 .plabel{width:60mm;height:30mm;border:1px dashed #bbb;padding:2mm 3mm;display:flex;flex-direction:column;justify-content:space-between;break-inside:avoid;font-family:var(--font)}
 .plabel .t{font-size:8pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plabel svg{width:100%;height:18mm}
+.plabels.roll{display:block}
+.plabels.roll .plabel{border:0;padding:1.5mm 2mm;break-after:page;page-break-after:always}
+.plabels.roll .plabel:last-child{break-after:auto;page-break-after:auto}
 </style>
 </head>
 <body>
@@ -217,7 +220,7 @@ function seed(){
   ];
   return {books,patrons,loans,seq:{B:20,P:5,L:4},cfg:{...CFG0}};
 }
-const CFG0={loanDays:14,maxBooks:5,maxRenew:1,name:"圖書室",finePerDay:5,fineCap:0,remindDays:2,contact:""};
+const CFG0={loanDays:14,maxBooks:5,maxRenew:1,name:"圖書室",finePerDay:5,fineCap:0,remindDays:2,contact:"",labelMode:"a4",labelW:40,labelH:30};
 function fix(d){d.cfg={...CFG0,...(d.cfg||{})};Object.values(d.patrons||{}).forEach(p=>{if(!Array.isArray(p.cards))p.cards=[]});return d}
 function load(){try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);if(d&&d.books)return fix(d)}}catch(e){}return seed()}
 let db=load();
@@ -503,7 +506,14 @@ function printCards(ids){if(!ids.length){toast("請先勾選要印的借閱者",
   doPrint(el("div",{class:"pcards"},...ids.map(id=>{const p=db.patrons[id];return el("div",{class:"pcard"},el("div",{class:"h"},(db.cfg.name||"圖書室")+"・借閱證"),el("div",{class:"n"},p.name),barcodeSvg(id))})))}
 function printLabels(ids){if(!ids.length){toast("請先勾選要印書標的書","bad");return}
   if(typeof JsBarcode==="undefined"){toast("要連上網路才能產生條碼","bad");return}
-  doPrint(el("div",{class:"plabels"},...ids.map(id=>{const b=db.books[id];return el("div",{class:"plabel"},el("div",{class:"t"},(db.cfg.name||"圖書室")+"・"+b.title),barcodeSvg(id))})))}
+  /* 標籤機模式：一張貼紙一頁，紙張大小＝貼紙大小 */
+  const roll=db.cfg.labelMode==="roll",W=db.cfg.labelW||40,H=db.cfg.labelH||30;
+  const ps=$("#pagesize");if(ps)ps.remove();
+  if(roll)document.head.append(el("style",{id:"pagesize"},"@media print{@page{size:"+W+"mm "+H+"mm;margin:0}}"));
+  doPrint(el("div",{class:"plabels"+(roll?" roll":"")},...ids.map(id=>{const b=db.books[id];const svg=barcodeSvg(id);
+    if(roll)svg.style.height=Math.round(H*0.62)+"mm";
+    return el("div",{class:"plabel",style:roll?"width:"+W+"mm;height:"+H+"mm":null},el("div",{class:"t"},(db.cfg.name||"圖書室")+"・"+b.title),svg)})))}
+window.addEventListener("afterprint",()=>{const ps=$("#pagesize");if(ps)ps.remove()});
 $("#p-print").onclick=()=>printCards([...selPatrons].filter(id=>db.patrons[id]));
 $("#k-print").onclick=()=>printLabels([...selBooks].filter(id=>db.books[id]));
 
@@ -540,7 +550,9 @@ $("#open-set").onclick=()=>{
     el("div",{class:"row2"},num("可以續借幾次","maxRenew",0,10),num("到期前幾天開始提醒","remindDays",0,14)),
     el("div",{class:"row2"},num("逾期每天罰款（元，0＝不罰）","finePerDay",0,1000),num("每本罰款上限（元，0＝不設上限）","fineCap",0,10000)),
     el("label",{class:"f"},"圖書室聯絡電話（寫在通知信最後）",ct));
-  const sv=el("button",{class:"btn"},"儲存設定");sv.onclick=()=>{const n=(v,d,min)=>Math.max(min,isNaN(v)?d:v);db.cfg={loanDays:n(c.loanDays,14,1),maxBooks:n(c.maxBooks,5,1),maxRenew:n(c.maxRenew,1,0),remindDays:n(c.remindDays,2,0),finePerDay:n(c.finePerDay,5,0),fineCap:n(c.fineCap,0,0),name:(c.name||"圖書室").trim(),contact:(c.contact||"").trim()};save();closeSheet();renderAll();toast("設定存好了","good")};
+  const lm=el("select",{},el("option",{value:"a4",selected:c.labelMode!=="roll"},"一般印表機＋A4 標籤貼紙（一張很多格）"),el("option",{value:"roll",selected:c.labelMode==="roll"},"標籤機（一捲貼紙，一張一張印）"));lm.onchange=()=>c.labelMode=lm.value;
+  p.append(el("label",{class:"f"},"🏷 書標用什麼印",lm),el("div",{class:"row2"},num("標籤機貼紙寬（mm）","labelW",20,100),num("標籤機貼紙高（mm）","labelH",15,100)));
+  const sv=el("button",{class:"btn"},"儲存設定");sv.onclick=()=>{const n=(v,d,min)=>Math.max(min,isNaN(v)?d:v);db.cfg={loanDays:n(c.loanDays,14,1),maxBooks:n(c.maxBooks,5,1),maxRenew:n(c.maxRenew,1,0),remindDays:n(c.remindDays,2,0),finePerDay:n(c.finePerDay,5,0),fineCap:n(c.fineCap,0,0),name:(c.name||"圖書室").trim(),contact:(c.contact||"").trim(),labelMode:c.labelMode==="roll"?"roll":"a4",labelW:n(c.labelW,40,20),labelH:n(c.labelH,30,15)};save();closeSheet();renderAll();toast("設定存好了","good")};
   p.append(el("div",{class:"foot"},el("span",{class:"sp"}),sv));
   p.append(el("h3",{style:"margin-top:8px"},"💾 備份"),el("div",{class:"note"},"試做版的資料只存在這台電腦的瀏覽器裡。清除瀏覽器資料就會不見，記得偶爾下載備份。"));
   const exp=el("button",{class:"btn ghost"},"下載備份");exp.onclick=()=>{const a=el("a",{href:URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:"application/json"})),download:"圖書室備份_"+today()+".json"});document.body.append(a);a.click();a.remove()};
