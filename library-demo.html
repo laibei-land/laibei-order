@@ -115,6 +115,21 @@ video{width:100%;border-radius:12px;background:#000}
 .plabel{width:60mm;height:30mm;border:1px dashed #bbb;padding:2mm 3mm;display:flex;flex-direction:column;justify-content:space-between;break-inside:avoid;font-family:var(--font)}
 .plabel .t{font-size:8pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plabel svg{width:100%;height:18mm}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.pbtn{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:16px 12px;text-align:center;display:grid;gap:4px}
+.pbtn b{font-size:20px}
+.pbtn span{font-size:13px;color:var(--muted)}
+.pbtn.in{border-color:var(--good)}.pbtn.in span{color:var(--good);font-weight:700}
+.pbtn.brk{border-color:var(--warn)}.pbtn.brk span{color:var(--warn);font-weight:700}
+.pacts{display:grid;gap:10px}
+.btn.big{padding:16px;font-size:20px;width:100%}
+.btn.big.out{background:var(--bad)}.btn.big.brk,.btn.big.back{background:var(--warn)}.btn.big.in{background:var(--good)}
+.done{display:grid;gap:6px;justify-items:center;padding:24px 0;text-align:center;font-size:20px}
+.clockhead{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.clockhead b{font-size:38px;font-family:var(--num)}
+.iss{color:var(--bad);font-size:12px;white-space:normal}
+.sumrow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.sumrow div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
 .plabels.roll{display:block}
 .plabels.roll .plabel{border:0;padding:1.5mm 2mm;break-after:page;page-break-after:always}
 .plabels.roll .plabel:last-child{break-after:auto;page-break-after:auto}
@@ -134,6 +149,7 @@ video{width:100%;border-radius:12px;background:#000}
     <a href="#books" data-v="books">📚 書目</a>
     <a href="#patrons" data-v="patrons">🪪 借閱者</a>
     <a href="#overview" data-v="overview">📊 總覽</a>
+    <a href="#clock" data-v="clock">⏰ 打卡</a>
   </nav>
 </div></header>
 
@@ -190,6 +206,17 @@ video{width:100%;border-radius:12px;background:#000}
     </div>
     <div class="card" style="margin-top:14px"><h2>🕘 最近的借還紀錄</h2><div id="o-log"></div></div>
   </section>
+
+  <!-- 打卡 -->
+  <section id="v-clock" hidden>
+    <div class="clockhead"><span>現在時間</span><b id="ck-clock"></b></div>
+    <p class="hint" style="margin:0 0 12px">點自己的名字 → 輸入打卡密碼 → 按上班／休息／休息結束／下班。館員名單和密碼在「⚙️ 設定與備份」設定。</p>
+    <div class="pgrid" id="ck-people"></div>
+    <h2>📋 出勤明細</h2>
+    <div class="bar"><input type="month" id="rp-m" aria-label="月份" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface)"><select id="rp-who" aria-label="誰"></select><span class="sp" style="flex:1"></span><button class="btn ghost small" id="rp-add">＋ 補登</button><button class="btn small" id="rp-xls">⬇️ 下載 Excel</button></div>
+    <div class="sumrow" id="rp-sum"></div>
+    <div class="tablewrap" id="rp-box"></div>
+  </section>
 </main>
 
 <div class="sheet" id="sheet" hidden><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
@@ -218,10 +245,10 @@ function seed(){
     {id:"L3",bookId:"B0012",patronId:"P0002",out:addDays(t,-12),due:addDays(t,2),renew:0,ret:null},
     {id:"L4",bookId:"B0003",patronId:"P0003",out:addDays(t,-30),due:addDays(t,-16),renew:0,ret:addDays(t,-17)}
   ];
-  return {books,patrons,loans,seq:{B:20,P:5,L:4},cfg:{...CFG0}};
+  return {books,patrons,loans,punches:[],seq:{B:20,P:5,L:4},cfg:{...CFG0}};
 }
-const CFG0={loanDays:14,maxBooks:5,maxRenew:1,name:"圖書室",finePerDay:5,fineCap:0,remindDays:2,contact:"",labelMode:"a4",labelW:40,labelH:30};
-function fix(d){d.cfg={...CFG0,...(d.cfg||{})};Object.values(d.patrons||{}).forEach(p=>{if(!Array.isArray(p.cards))p.cards=[]});return d}
+const CFG0={loanDays:14,maxBooks:5,maxRenew:1,name:"圖書室",finePerDay:5,fineCap:0,remindDays:2,contact:"",labelMode:"a4",labelW:40,labelH:30,staff:["館員 A","館員 B"],pins:{}};
+function fix(d){d.cfg={...CFG0,...(d.cfg||{})};if(!Array.isArray(d.punches))d.punches=[];Object.values(d.patrons||{}).forEach(p=>{if(!Array.isArray(p.cards))p.cards=[]});return d}
 function load(){try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);if(d&&d.books)return fix(d)}}catch(e){}return seed()}
 let db=load();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast("這個瀏覽器沒辦法存資料，關掉後會不見","bad")}}
@@ -498,6 +525,115 @@ function renderNotify(){
   box.append(list);
 }
 
+/* ---------- 打卡（櫃檯一台共用電腦：點名字＋密碼） ---------- */
+const WK="日一二三四五六";
+const mdw=s=>md(s)+"（"+WK[toDate(s).getDay()]+"）";
+const TYPES={in:"上班",brk:"休息",back:"休息結束",out:"下班"};
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
+async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("")}
+const pinHash=(name,pin)=>sha("library:"+name+":"+pin);
+const canHash=!!(window.crypto&&crypto.subtle);
+function stateOf(who){const ps=db.punches.filter(p=>p.who===who).sort((a,b)=>a.at-b.at),last=ps[ps.length-1];if(!last)return {st:"out"};
+  const st=last.type==="in"||last.type==="back"?"in":last.type==="brk"?"brk":"out";
+  if(st!=="out"&&Date.now()-last.at>20*3600e3)return {st:"out",forgot:last};
+  return {st,last}}
+const stLabel={in:"上班中",brk:"休息中",out:"還沒上班"};
+function renderClock(){
+  const box=$("#ck-people");box.replaceChildren();
+  (db.cfg.staff||[]).forEach(name=>{const s=stateOf(name);const sameDay=s.last&&ymd(new Date(s.last.at))===today();
+    box.append(el("button",{class:"pbtn "+s.st,onclick:()=>openPunch(name)},el("b",{},name),el("span",{},(s.st==="out"&&sameDay?"已下班":stLabel[s.st])+(sameDay?"・"+hm(s.last.at):""))))});
+  if(!(db.cfg.staff||[]).length)box.append(el("div",{class:"empty"},"還沒有館員名單，請到「⚙️ 設定與備份」新增"));
+  $("#ck-clock").textContent=hm(Date.now());
+}
+setInterval(()=>{const c=$("#ck-clock");if(c)c.textContent=hm(Date.now())},10000);
+function openPunch(name){
+  const s=stateOf(name),hasPin=!!(db.cfg.pins||{})[name]&&canHash;
+  const p=openSheet();p.replaceChildren(el("h3",{},"⏰ "+name),el("div",{class:"note"},"現在 "+hm(Date.now())+"・"+stLabel[s.st]+(s.forgot?"（上次 "+md(ymd(new Date(s.forgot.at)))+" 好像忘了打下班卡，請主管補登）":"")));
+  const pin=el("input",{type:"password",inputmode:"numeric",maxlength:"8",autocomplete:"off",placeholder:"輸入打卡密碼",style:"font-size:22px;text-align:center;letter-spacing:.3em"});
+  if(hasPin)p.append(el("label",{class:"f"},"🔒 密碼",pin));else p.append(el("div",{class:"err"},"還沒設定打卡密碼（「⚙️ 設定與備份」可以設），現在直接按就好。"));
+  const err=el("div",{class:"err"});
+  const acts=s.st==="in"?[["brk","☕ 休息"],["out","🏠 下班"]]:s.st==="brk"?[["back","💪 休息結束，回來上班"]]:[["in","🌅 上班"]];
+  const row=el("div",{class:"pacts"});
+  acts.forEach(([t,label])=>{const b=el("button",{class:"btn big "+t},label);b.onclick=async()=>{
+    if(hasPin){if(!pin.value){err.textContent="請輸入密碼";pin.focus();return}
+      if(await pinHash(name,pin.value)!==db.cfg.pins[name]){err.textContent="密碼不對，再試一次";pin.value="";pin.focus();beep(false);return}}
+    const now=Date.now();db.punches.push({id:"K"+now,who:name,type:t,at:now,date:today()});save();beep(true);
+    p.replaceChildren(el("div",{class:"done"},el("div",{style:"font-size:46px"},"✅"),el("b",{},name+"・"+TYPES[t]),el("div",{class:"num",style:"font-size:30px"},hm(now))));
+    renderClock();runReport();setTimeout(()=>{if(!$("#sheet").hidden)closeSheet()},2500)};row.append(b)});
+  pin.addEventListener("keydown",e=>{if(e.key==="Enter"&&acts.length===1)row.querySelector("button").click()});
+  p.append(row,err,el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消")));
+  if(hasPin)setTimeout(()=>pin.focus(),50);
+}
+/* 出勤明細 */
+let rpRows=[];
+const dur=ms=>{const m=Math.round(ms/60000);return m<=0?"0 分":(Math.floor(m/60)?Math.floor(m/60)+" 小時 ":"")+(m%60?(m%60)+" 分":"")};
+const hrs=ms=>(Math.round(ms/36e5*100)/100).toFixed(2);
+function buildRows(list,whoF){
+  const g={};list.filter(p=>!whoF||p.who===whoF).forEach(p=>{const k=p.date+"|"+p.who;(g[k]=g[k]||[]).push(p)});
+  return Object.entries(g).map(([k,ps])=>{ps.sort((a,b)=>a.at-b.at);const [date,who]=k.split("|");
+    let start=null,end=null,inAt=null,curBrk=null,work=0;const brks=[],iss=[];
+    ps.forEach(p=>{if(p.type==="in"){if(start==null)start=p.at;if(inAt==null)inAt=p.at}
+      else if(p.type==="brk"){if(inAt!=null){work+=p.at-inAt;inAt=null}curBrk=p.at}
+      else if(p.type==="back"){if(curBrk!=null){brks.push([curBrk,p.at]);curBrk=null}if(inAt==null)inAt=p.at}
+      else if(p.type==="out"){if(inAt!=null){work+=p.at-inAt;inAt=null}end=p.at}});
+    if(start==null)iss.push("沒有上班卡");if(inAt!=null||curBrk!=null)iss.push(curBrk!=null?"休息沒打結束":"沒打下班卡");
+    if(ps.some(p=>p.manual))iss.push("有補登："+ps.filter(p=>p.manual).map(p=>TYPES[p.type]+" "+hm(p.at)+(p.note?"（"+p.note+"）":"")).join("、"));
+    return {date,who,start,end,brks,breakMs:brks.reduce((s,b)=>s+b[1]-b[0],0),workMs:work,iss}}).sort((a,b)=>a.date.localeCompare(b.date)||a.who.localeCompare(b.who));
+}
+function runReport(){
+  const ym=$("#rp-m").value;if(!ym)return;
+  rpRows=buildRows(db.punches.filter(p=>p.date.startsWith(ym)),$("#rp-who").value);
+  const sum=$("#rp-sum");sum.replaceChildren();
+  Array.from(new Set(rpRows.map(r=>r.who))).forEach(w=>{const rs=rpRows.filter(r=>r.who===w);sum.append(el("div",{},w+"：上班 ",el("b",{class:"num"},String(rs.length))," 天・共 ",el("b",{},dur(rs.reduce((s,r)=>s+r.workMs,0)))))});
+  const box=$("#rp-box");
+  if(!rpRows.length){box.replaceChildren(el("div",{class:"empty",style:"border:0"},"這個月還沒有打卡紀錄"));return}
+  box.replaceChildren(el("table",{},el("thead",{},el("tr",{},...["日期","姓名","上班","休息","下班","休息合計","工時","備註",""].map(h=>el("th",{},h)))),
+    el("tbody",{},...rpRows.map(r=>el("tr",{},el("td",{class:"nw num"},mdw(r.date)),el("td",{class:"nw"},el("b",{},r.who)),el("td",{class:"nw num"},r.start?hm(r.start):"—"),
+      el("td",{class:"nw num"},r.brks.map(b=>hm(b[0])+"–"+hm(b[1])).join("、")||"—"),el("td",{class:"nw num"},r.end?hm(r.end):"—"),
+      el("td",{class:"nw"},dur(r.breakMs)),el("td",{class:"nw"},el("b",{},dur(r.workMs))),el("td",{class:"iss"},r.iss.join("；")),
+      el("td",{class:"nw"},el("button",{class:"btn ghost small",onclick:()=>punchEditor(r.who,r.date)},"修改")))))));
+}
+function xlsDownload(){
+  if(!rpRows.length){toast("這個月沒有資料可以下載","bad");return}
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const L=[["日期","星期","姓名","上班","休息時段","下班","休息合計(小時)","工時(小時)","備註"].map(q).join(",")];
+  rpRows.forEach(r=>L.push([r.date,"週"+WK[toDate(r.date).getDay()],r.who,r.start?hm(r.start):"",r.brks.map(b=>hm(b[0])+"-"+hm(b[1])).join(" / "),r.end?hm(r.end):"",hrs(r.breakMs),hrs(r.workMs),r.iss.join("；")].map(q).join(",")));
+  L.push("");L.push(["姓名","上班天數","總工時(小時)"].map(q).join(","));
+  Array.from(new Set(rpRows.map(r=>r.who))).forEach(w=>{const rs=rpRows.filter(r=>r.who===w);L.push([w,rs.length,hrs(rs.reduce((s,r)=>s+r.workMs,0))].map(q).join(","))});
+  const a=el("a",{href:URL.createObjectURL(new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"})),download:(db.cfg.name||"圖書室")+"出勤明細_"+$("#rp-m").value+($("#rp-who").value?"_"+$("#rp-who").value:"")+".csv"});
+  document.body.append(a);a.click();a.remove();
+}
+function punchEditor(who,date){
+  const d={who:who||(db.cfg.staff||[])[0]||"",date:date||today()};
+  const p=openSheet();
+  const draw=()=>{
+    p.replaceChildren(el("h3",{},"✏️ 補登／修改打卡"));
+    const ws=el("select",{},...(db.cfg.staff||[]).map(n=>el("option",{value:n,selected:n===d.who},n)));ws.onchange=()=>{d.who=ws.value;draw()};
+    const ds=el("input",{type:"date",value:d.date});ds.onchange=()=>{d.date=ds.value;draw()};
+    p.append(el("div",{class:"row2"},el("label",{class:"f"},"誰",ws),el("label",{class:"f"},"日期",ds)));
+    const ps=db.punches.filter(x=>x.who===d.who&&x.date===d.date).sort((a,b)=>a.at-b.at);
+    const list=el("div",{class:"list",style:"margin:0"});
+    if(!ps.length)list.append(el("div",{class:"note"},"這天還沒有打卡紀錄"));
+    ps.forEach(x=>{const del=el("button",{class:"btn danger small"},"刪除");twoStep(del,"刪除","確定？",()=>{db.punches=db.punches.filter(y=>y.id!==x.id);save();draw();renderClock();runReport()});
+      list.append(el("div",{class:"item"},el("b",{class:"num"},hm(x.at)),el("div",{class:"info"},el("b",{},TYPES[x.type]),el("span",{},x.manual?"補登："+(x.note||""):"")),del))});
+    p.append(list);
+    const ty=el("select",{},...Object.entries(TYPES).map(([k,v])=>el("option",{value:k},v)));
+    const tm=el("input",{type:"time",value:"09:00"});
+    const nt=el("input",{placeholder:"例如：忘記打卡"});
+    const err=el("div",{class:"err"});
+    const add=el("button",{class:"btn"},"＋ 補登這筆");
+    add.onclick=()=>{if(!d.who){err.textContent="請先在設定新增館員";return}if(!nt.value.trim()){err.textContent="請寫補登原因";nt.focus();return}if(!tm.value){err.textContent="請選時間";return}
+      const [hh,mm]=tm.value.split(":").map(Number);const t=toDate(d.date);t.setHours(hh,mm,0,0);
+      db.punches.push({id:"K"+Date.now()+Math.random().toString(36).slice(2,6),who:d.who,type:ty.value,at:t.getTime(),date:d.date,manual:true,note:nt.value.trim().slice(0,100)});save();draw();renderClock();runReport()};
+    p.append(el("div",{class:"row2"},el("label",{class:"f"},"補登哪一種",ty),el("label",{class:"f"},"時間",tm)),el("label",{class:"f"},"原因（一定要寫）",nt),err,
+      el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"關閉"),add));
+  };draw();
+}
+$("#rp-m").value=today().slice(0,7);
+$("#rp-m").onchange=runReport;$("#rp-who").onchange=runReport;
+$("#rp-add").onclick=()=>punchEditor(null,null);$("#rp-xls").onclick=xlsDownload;
+function fillWho(){const s=$("#rp-who"),cur=s.value,st=db.cfg.staff||[];s.replaceChildren(el("option",{value:""},"全部的人"),...st.map(n=>el("option",{value:n},n)));s.value=st.includes(cur)?cur:""}
+
 /* ---------- 列印 ---------- */
 function barcodeSvg(code){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");JsBarcode(s,code,{format:"CODE128",width:2,height:50,displayValue:true,fontSize:14,margin:0});return s}
 function doPrint(node){if(typeof JsBarcode==="undefined"){toast("要連上網路才能產生條碼","bad");return false}$("#print").replaceChildren(node);setTimeout(()=>window.print(),80);return true}
@@ -552,7 +688,20 @@ $("#open-set").onclick=()=>{
     el("label",{class:"f"},"圖書室聯絡電話（寫在通知信最後）",ct));
   const lm=el("select",{},el("option",{value:"a4",selected:c.labelMode!=="roll"},"一般印表機＋A4 標籤貼紙（一張很多格）"),el("option",{value:"roll",selected:c.labelMode==="roll"},"標籤機（一捲貼紙，一張一張印）"));lm.onchange=()=>c.labelMode=lm.value;
   p.append(el("label",{class:"f"},"🏷 書標用什麼印",lm),el("div",{class:"row2"},num("標籤機貼紙寬（mm）","labelW",20,100),num("標籤機貼紙高（mm）","labelH",15,100)));
-  const sv=el("button",{class:"btn"},"儲存設定");sv.onclick=()=>{const n=(v,d,min)=>Math.max(min,isNaN(v)?d:v);db.cfg={loanDays:n(c.loanDays,14,1),maxBooks:n(c.maxBooks,5,1),maxRenew:n(c.maxRenew,1,0),remindDays:n(c.remindDays,2,0),finePerDay:n(c.finePerDay,5,0),fineCap:n(c.fineCap,0,0),name:(c.name||"圖書室").trim(),contact:(c.contact||"").trim(),labelMode:c.labelMode==="roll"?"roll":"a4",labelW:n(c.labelW,40,20),labelH:n(c.labelH,30,15)};save();closeSheet();renderAll();toast("設定存好了","good")};
+  /* 打卡：館員名單＋密碼（只存加密後的樣子） */
+  const stf=el("textarea",{rows:"4"},(c.staff||[]).join("\n"));
+  p.append(el("label",{class:"f"},"⏰ 打卡的館員（一行一個名字）",stf));
+  const pinBox=el("div",{style:"display:grid;gap:6px"});const pinIns={};
+  const drawPins=()=>{pinBox.replaceChildren(el("div",{style:"font-size:13px;color:var(--muted)"},"打卡密碼（4～8 位數字；留空＝不改）"));
+    stf.value.split("\n").map(x=>x.trim()).filter(Boolean).forEach(n=>{const has=!!(c.pins||{})[n];const i=el("input",{type:"password",inputmode:"numeric",maxlength:"8",autocomplete:"new-password",placeholder:has?"已設定，要改才填":"還沒設定"});
+      const clr=el("input",{type:"checkbox"});pinIns[n]={i,clr};
+      pinBox.append(el("div",{class:"row2",style:"align-items:end"},el("label",{class:"f"},n,i),has?el("label",{style:"font-size:13px;display:flex;gap:6px;align-items:center"},clr,"清除密碼"):el("span")))})};
+  stf.addEventListener("change",drawPins);drawPins();p.append(pinBox);
+  const sv=el("button",{class:"btn"},"儲存設定");sv.onclick=async()=>{const n=(v,d,min)=>Math.max(min,isNaN(v)?d:v);
+    const staff=stf.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,40),pins={...(c.pins||{})};
+    for(const nm of staff){const pi=pinIns[nm];if(!pi)continue;const v=pi.i.value.trim();if(pi.clr.checked){delete pins[nm];continue}
+      if(v){if(!/^\d{4,8}$/.test(v)){toast(nm+" 的密碼要 4～8 位數字","bad");pi.i.focus();return}if(!canHash){toast("這個瀏覽器不能設密碼，請用 Chrome 打開網址版","bad");return}pins[nm]=await pinHash(nm,v)}}
+    db.cfg={staff,pins,loanDays:n(c.loanDays,14,1),maxBooks:n(c.maxBooks,5,1),maxRenew:n(c.maxRenew,1,0),remindDays:n(c.remindDays,2,0),finePerDay:n(c.finePerDay,5,0),fineCap:n(c.fineCap,0,0),name:(c.name||"圖書室").trim(),contact:(c.contact||"").trim(),labelMode:c.labelMode==="roll"?"roll":"a4",labelW:n(c.labelW,40,20),labelH:n(c.labelH,30,15)};save();closeSheet();renderAll();toast("設定存好了","good")};
   p.append(el("div",{class:"foot"},el("span",{class:"sp"}),sv));
   p.append(el("h3",{style:"margin-top:8px"},"💾 備份"),el("div",{class:"note"},"試做版的資料只存在這台電腦的瀏覽器裡。清除瀏覽器資料就會不見，記得偶爾下載備份。"));
   const exp=el("button",{class:"btn ghost"},"下載備份");exp.onclick=()=>{const a=el("a",{href:URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:"application/json"})),download:"圖書室備份_"+today()+".json"});document.body.append(a);a.click();a.remove()};
@@ -563,9 +712,9 @@ $("#open-set").onclick=()=>{
 };
 
 /* ---------- 切換分頁 ---------- */
-const VIEWS=["borrow","return","books","patrons","overview"];
+const VIEWS=["borrow","return","books","patrons","overview","clock"];
 const curView=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:"borrow"};
-function renderAll(){renderBorrow();renderReturn();renderBooks();renderPatrons();renderOverview()}
+function renderAll(){renderBorrow();renderReturn();renderBooks();renderPatrons();renderOverview();renderClock();fillWho();runReport()}
 function route(){const v=curView();VIEWS.forEach(k=>{$("#v-"+k).hidden=k!==v});document.querySelectorAll(".tabs a").forEach(a=>a.setAttribute("aria-current",a.dataset.v===v?"page":"false"));renderAll();setTimeout(focusScan,30)}
 window.addEventListener("hashchange",route);
 window.addEventListener("storage",e=>{if(e.key===KEY){db=load();renderAll()}});
