@@ -50,7 +50,29 @@ header p{margin:0 0 14px;color:var(--muted)}
 .now .big{font-size:19px;font-weight:900}
 .now .sub{color:var(--muted);font-size:14px}
 .now .todo{margin-top:6px;background:var(--sand);border-radius:10px;padding:8px 10px;font-size:14px}
-.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--sea-soft);border-radius:12px;padding:4px;margin-bottom:14px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:22px}
+.pbtn{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:16px 12px;text-align:center;display:grid;gap:4px}
+.pbtn b{font-size:20px}
+.pbtn span{font-size:13px;color:var(--muted)}
+.pbtn.in{border-color:var(--good)}.pbtn.in span{color:var(--good);font-weight:700}
+.pbtn.brk{border-color:#C98A1B}.pbtn.brk span{color:#C98A1B;font-weight:700}
+.pacts{display:grid;gap:10px}
+.btn.big{padding:16px;font-size:20px;width:100%}
+.btn.big.out{background:var(--pink)}.btn.big.brk,.btn.big.back{background:#C98A1B}.btn.big.in{background:var(--good)}
+.done{display:grid;gap:6px;justify-items:center;padding:24px 0;text-align:center;font-size:20px}
+.clockhead{display:flex;align-items:baseline;gap:10px;margin-bottom:2px}
+.clockhead b{font-size:38px;font-family:var(--num)}
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.tw table{border-collapse:collapse;width:100%;min-width:760px}
+.tw th,.tw td{padding:8px 9px;border-bottom:1px solid var(--line);font-size:14px;text-align:left;white-space:nowrap;vertical-align:top}
+.tw th{font-size:12px;color:var(--muted);font-weight:500}
+.iss{color:var(--bad);font-size:12px;white-space:normal}
+.sumrow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.sumrow div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
+.sumrow b{font-family:var(--num)}
+.prow{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface)}
+.prow .sp{flex:1}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:var(--sea-soft);border-radius:12px;padding:4px;margin-bottom:14px}
 .tabs a{text-align:center;padding:9px 4px;border-radius:9px;font-weight:700;color:var(--sea);text-decoration:none;font-size:15px}
 .tabs a[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
@@ -141,7 +163,7 @@ label.f textarea{min-height:76px;resize:vertical}
   <header>
     <small>來杯！・LAI BEI</small>
     <h1>排班＆交接</h1>
-    <p>家人輪流顧店：誰顧哪幾天、交接時留給下一位的話、每天開店關店打勾。</p>
+    <p>家人輪流顧店：誰顧哪幾天、交接時留給下一位的話、每天開店關店打勾、上下班打卡。</p>
   </header>
   <div class="msg" id="msg" hidden></div>
 
@@ -158,6 +180,7 @@ label.f textarea{min-height:76px;resize:vertical}
       <a href="#shifts" id="t-shifts">📅 排班</a>
       <a href="#handover" id="t-handover">📝 交接</a>
       <a href="#check" id="t-check">✅ 每日檢查</a>
+      <a href="#clock" id="t-clock">⏰ 打卡</a>
     </nav>
 
     <main id="v-shifts">
@@ -184,6 +207,16 @@ label.f textarea{min-height:76px;resize:vertical}
         <button class="btn ghost small" id="d-next" aria-label="後一天">›</button>
       </div>
       <div id="ckbox"></div>
+    </main>
+
+    <main id="v-clock" hidden>
+      <div class="clockhead"><span>現在時間</span><b id="ck-clock"></b></div>
+      <p class="hint" style="color:var(--muted);font-size:14px;margin:0 0 12px">點自己的名字 → 輸入打卡密碼 → 按上班／休息／休息結束／下班。</p>
+      <div class="pgrid" id="ck-people"></div>
+      <h2>📋 出勤明細</h2>
+      <div class="bar"><input type="month" id="rp-m" aria-label="月份" style="border:1px solid var(--line);border-radius:10px;padding:7px 9px;background:var(--surface)"><select id="rp-who" aria-label="誰" style="border:1px solid var(--line);border-radius:10px;padding:7px 9px;background:var(--surface)"></select><span class="hint"></span><button class="btn ghost small" id="rp-add">＋ 補登</button><button class="btn small" id="rp-xls">⬇️ 下載 Excel</button></div>
+      <div class="sumrow" id="rp-sum"></div>
+      <div class="tw" id="rp-box"></div>
     </main>
 
     <div class="setlink"><a href="#" id="open-set">⚙️ 設定：顧店的人、檢查清單、常叫貨的東西</a></div>
@@ -485,15 +518,142 @@ $("#d-pick").onchange=()=>{if($("#d-pick").value){ckDay=$("#d-pick").value;rende
 $("#d-prev").onclick=()=>{ckDay=addDays(ckDay,-1);renderChecks()};
 $("#d-next").onclick=()=>{ckDay=addDays(ckDay,1);renderChecks()};
 
+/* ---------- 打卡（店裡一台共用裝置：點名字＋密碼） ---------- */
+const PU="punches";
+let punches={};
+const TYPES={in:"上班",brk:"休息",back:"休息結束",out:"下班"};
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
+async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("")}
+const pinHash=(name,pin)=>sha("laibei:"+name+":"+pin);
+const punchList=who=>Object.entries(punches).map(([id,p])=>({id,...p})).filter(p=>!who||p.who===who).sort((a,b)=>a.at-b.at);
+function stateOf(who){const ps=punchList(who),last=ps[ps.length-1];if(!last)return {st:"out"};
+  const st=last.type==="in"||last.type==="back"?"in":last.type==="brk"?"brk":"out";
+  if(st!=="out"&&Date.now()-last.at>20*3600e3)return {st:"out",forgot:last};
+  return {st,last}}
+const stLabel={in:"上班中",brk:"休息中",out:"還沒上班"};
+function renderClock(){
+  const box=$("#ck-people");box.replaceChildren();
+  cfg.people.forEach(name=>{const s=stateOf(name);
+    box.append(el("button",{class:"pbtn "+s.st,onclick:()=>openPunch(name)},el("b",{},name),el("span",{},stLabel[s.st]+(s.last?"・"+hm(s.last.at):""))))});
+  $("#ck-clock").textContent=hm(Date.now());
+}
+setInterval(()=>{const c=$("#ck-clock");if(c)c.textContent=hm(Date.now())},10000);
+function openPunch(name){
+  const s=stateOf(name),hasPin=!!(cfg.pins||{})[name];
+  const p=openSheet();p.replaceChildren(el("h3",{},"⏰ "+name),el("div",{class:"note"},"現在 "+hm(Date.now())+"・"+stLabel[s.st]+(s.forgot?"（上次 "+md(ymd(new Date(s.forgot.at)))+" 好像忘了打下班卡，請跟老闆娘說要補登）":"")));
+  const pin=el("input",{type:"password",inputmode:"numeric",maxlength:"8",autocomplete:"off",placeholder:"輸入打卡密碼",style:"font-size:22px;text-align:center;letter-spacing:.3em"});
+  if(hasPin)p.append(el("label",{class:"f"},"🔒 密碼",pin));else p.append(el("div",{class:"warn"},"還沒設定打卡密碼（頁面最下面「⚙️ 設定」可以設），現在直接按就好。"));
+  const err=el("div",{class:"warn"});
+  const acts=s.st==="in"?[["brk","☕ 休息"],["out","🏠 下班"]]:s.st==="brk"?[["back","💪 休息結束，回來上班"]]:[["in","🌅 上班"]];
+  const row=el("div",{class:"pacts"});
+  acts.forEach(([t,label])=>{const b=el("button",{class:"btn big "+t},label);b.onclick=async()=>{
+    if(hasPin){if(!pin.value){err.textContent="請輸入密碼";pin.focus();return}
+      if(await pinHash(name,pin.value)!==cfg.pins[name]){err.textContent="密碼不對，再試一次";pin.value="";pin.focus();return}}
+    b.disabled=true;const now=Date.now();
+    try{await fs.addDoc(fs.collection(fdb,PU),{who:name,type:t,at:now,srv:fs.serverTimestamp(),date:ymd(new Date(now)),by:me.name});
+      p.replaceChildren(el("div",{class:"done"},el("div",{style:"font-size:46px"},"✅"),el("b",{},name+"・"+TYPES[t]),el("div",{class:"num",style:"font-size:30px"},hm(now))));
+      setTimeout(()=>{if(!$("#sheet").hidden)closeSheet()},2500)}
+    catch(e){console.error(e);b.disabled=false;err.textContent="沒有打到卡，請檢查網路再按一次"}};row.append(b)});
+  pin.addEventListener("keydown",e=>{if(e.key==="Enter"&&acts.length===1)row.querySelector("button").click()});
+  p.append(row,err,el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消")));
+  if(hasPin)setTimeout(()=>pin.focus(),50);
+}
+
+/* ---------- 出勤明細 ---------- */
+let rpData=[],rpRows=[];
+const dur=ms=>{const m=Math.round(ms/60000);return m<=0?"0 分":(Math.floor(m/60)?Math.floor(m/60)+" 小時 ":"")+(m%60?(m%60)+" 分":"")};
+const hrs=ms=>(Math.round(ms/36e5*100)/100).toFixed(2);
+function buildRows(list,whoF){
+  const g={};list.filter(p=>!whoF||p.who===whoF).forEach(p=>{const k=p.date+"|"+p.who;(g[k]=g[k]||[]).push(p)});
+  return Object.entries(g).map(([k,ps])=>{ps.sort((a,b)=>a.at-b.at);const [date,who]=k.split("|");
+    let start=null,end=null,inAt=null,curBrk=null,work=0;const brks=[],iss=[];
+    ps.forEach(p=>{if(p.type==="in"){if(start==null)start=p.at;if(inAt==null)inAt=p.at}
+      else if(p.type==="brk"){if(inAt!=null){work+=p.at-inAt;inAt=null}curBrk=p.at}
+      else if(p.type==="back"){if(curBrk!=null){brks.push([curBrk,p.at]);curBrk=null}if(inAt==null)inAt=p.at}
+      else if(p.type==="out"){if(inAt!=null){work+=p.at-inAt;inAt=null}end=p.at}});
+    if(start==null)iss.push("沒有上班卡");if(inAt!=null||curBrk!=null)iss.push(curBrk!=null?"休息沒打結束":"沒打下班卡");
+    if(ps.some(p=>p.manual))iss.push("有補登："+ps.filter(p=>p.manual).map(p=>TYPES[p.type]+" "+hm(p.at)+(p.note?"（"+p.note+"）":"")).join("、"));
+    return {date,who,start,end,brks,breakMs:brks.reduce((s,b)=>s+b[1]-b[0],0),workMs:work,iss,ps}}).sort((a,b)=>a.date.localeCompare(b.date)||a.who.localeCompare(b.who));
+}
+async function runReport(){
+  const ym=$("#rp-m").value;if(!ym)return;
+  const box=$("#rp-box");box.replaceChildren(el("div",{class:"empty",style:"border:0"},"讀取中…"));
+  try{const s=await fs.getDocs(fs.query(fs.collection(fdb,PU),fs.where("date",">=",ym+"-01"),fs.where("date","<=",ym+"-31")));
+    rpData=[];s.forEach(d=>rpData.push({id:d.id,...d.data()}))}catch(e){console.error(e);box.replaceChildren(el("div",{class:"empty",style:"border:0"},"讀不到打卡資料（"+(e.code||"錯誤")+"）"));return}
+  rpRows=buildRows(rpData,$("#rp-who").value);
+  const sum=$("#rp-sum");sum.replaceChildren();
+  const people=Array.from(new Set(rpRows.map(r=>r.who)));
+  people.forEach(w=>{const rs=rpRows.filter(r=>r.who===w);sum.append(el("div",{},w+"：上班 ",el("b",{},String(rs.length))," 天・共 ",el("b",{},dur(rs.reduce((s,r)=>s+r.workMs,0)))))});
+  if(!rpRows.length){box.replaceChildren(el("div",{class:"empty",style:"border:0"},"這個月還沒有打卡紀錄"));return}
+  const tb=el("tbody");
+  rpRows.forEach(r=>tb.append(el("tr",{},el("td",{class:"num"},mdw(r.date)),el("td",{},el("b",{},r.who)),el("td",{class:"num"},r.start?hm(r.start):"—"),
+    el("td",{class:"num"},r.brks.map(b=>hm(b[0])+"–"+hm(b[1])).join("、")||"—"),el("td",{class:"num"},r.end?hm(r.end):"—"),
+    el("td",{},dur(r.breakMs)),el("td",{},el("b",{},dur(r.workMs))),el("td",{class:"iss"},r.iss.join("；")),
+    el("td",{},el("button",{class:"btn ghost small",onclick:()=>punchEditor(r.who,r.date)},"修改")))));
+  box.replaceChildren(el("table",{},el("thead",{},el("tr",{},...["日期","姓名","上班","休息","下班","休息合計","工時","備註",""].map(h=>el("th",{},h)))),tb));
+}
+function xlsDownload(){
+  if(!rpRows.length){sayMsg("這個月沒有資料可以下載");return}
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const L=[["日期","星期","姓名","上班","休息時段","下班","休息合計(小時)","工時(小時)","備註"].map(q).join(",")];
+  rpRows.forEach(r=>L.push([r.date,"週"+WK[toDate(r.date).getDay()],r.who,r.start?hm(r.start):"",r.brks.map(b=>hm(b[0])+"-"+hm(b[1])).join(" / "),r.end?hm(r.end):"",hrs(r.breakMs),hrs(r.workMs),r.iss.join("；")].map(q).join(",")));
+  L.push("");L.push(["姓名","上班天數","總工時(小時)"].map(q).join(","));
+  Array.from(new Set(rpRows.map(r=>r.who))).forEach(w=>{const rs=rpRows.filter(r=>r.who===w);L.push([w,rs.length,hrs(rs.reduce((s,r)=>s+r.workMs,0))].map(q).join(","))});
+  const a=el("a",{href:URL.createObjectURL(new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"})),download:"來杯出勤明細_"+$("#rp-m").value+($("#rp-who").value?"_"+$("#rp-who").value:"")+".csv"});
+  document.body.append(a);a.click();a.remove();
+}
+/* 補登／修改：忘了打卡時，由老闆娘或家人補，會標示「補登」和原因 */
+function punchEditor(who,date){
+  const d={who:who||cfg.people[0]||"",date:date||today()};
+  const p=openSheet();
+  const draw=async()=>{
+    p.replaceChildren(el("h3",{},"✏️ 補登／修改打卡"));
+    const ws=el("select",{},...cfg.people.map(n=>el("option",{value:n,selected:n===d.who},n)));ws.onchange=()=>{d.who=ws.value;draw()};
+    const ds=el("input",{type:"date",value:d.date});ds.onchange=()=>{d.date=ds.value;draw()};
+    p.append(el("div",{class:"row2"},el("label",{class:"f"},"誰",ws),el("label",{class:"f"},"日期",ds)));
+    const listBox=el("div",{style:"display:grid;gap:6px"},el("div",{class:"note"},"讀取中…"));p.append(listBox);
+    const ty=el("select",{},...Object.entries(TYPES).map(([k,v])=>el("option",{value:k},v)));
+    const tm=el("input",{type:"time",value:"09:00"});
+    const nt=el("input",{placeholder:"例如：忘記打卡、手機沒電"});
+    const err=el("div",{class:"warn"});
+    const add=el("button",{class:"btn"},"＋ 補登這筆");
+    add.onclick=async()=>{if(!nt.value.trim()){err.textContent="請寫補登原因";nt.focus();return}if(!tm.value){err.textContent="請選時間";return}
+      const [hh,mm]=tm.value.split(":").map(Number);const t=toDate(d.date);t.setHours(hh,mm,0,0);
+      add.disabled=true;try{await fs.addDoc(fs.collection(fdb,PU),{who:d.who,type:ty.value,at:t.getTime(),srv:fs.serverTimestamp(),date:d.date,by:me.name,manual:true,note:nt.value.trim().slice(0,100)});draw();runReport()}catch(e){add.disabled=false;err.textContent="沒有存到，請再試一次"}};
+    p.append(el("div",{class:"row2"},el("label",{class:"f"},"補登哪一種",ty),el("label",{class:"f"},"時間",tm)),el("label",{class:"f"},"原因（一定要寫）",nt),err,
+      el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"關閉"),add));
+    try{const s=await fs.getDocs(fs.query(fs.collection(fdb,PU),fs.where("date","==",d.date)));const ps=[];s.forEach(x=>{const v=x.data();if(v.who===d.who)ps.push({id:x.id,...v})});ps.sort((a,b)=>a.at-b.at);
+      listBox.replaceChildren();if(!ps.length)listBox.append(el("div",{class:"note"},"這天還沒有打卡紀錄"));
+      ps.forEach(x=>{const del=el("button",{class:"btn danger small"},"刪除");twoStep(del,"刪除","確定？",async()=>{await fs.deleteDoc(ref(PU,x.id));draw();runReport()});
+        listBox.append(el("div",{class:"prow"},el("b",{class:"num"},hm(x.at)),el("span",{},TYPES[x.type]),el("span",{class:"iss",style:"color:var(--muted)"},x.manual?"補登："+(x.note||"")+"（"+(x.by||"")+"）":(x.by||"")),el("span",{class:"sp"}),del))})}
+    catch(e){listBox.replaceChildren(el("div",{class:"warn"},"讀不到這天的紀錄"))}
+  };draw();
+}
+$("#rp-m").value=today().slice(0,7);
+$("#rp-m").onchange=runReport;$("#rp-who").onchange=runReport;
+$("#rp-add").onclick=()=>punchEditor(null,null);$("#rp-xls").onclick=xlsDownload;
+function fillWho(){const s=$("#rp-who"),cur=s.value;s.replaceChildren(el("option",{value:""},"全部的人"),...cfg.people.map(n=>el("option",{value:n},n)));s.value=cfg.people.includes(cur)?cur:""}
+
 /* ---------- 設定 ---------- */
 function settings(){
   const p=openSheet();p.replaceChildren(el("h3",{},"⚙️ 設定"),el("div",{class:"note"},"每個欄位一行一個。改完按儲存，大家的畫面會一起更新。"));
   const ta=(label,key)=>{const t=el("textarea",{rows:String(Math.min(10,Math.max(3,cfg[key].length+1)))},cfg[key].join("\n"));p.append(el("label",{class:"f"},label,t));return t};
   const a=ta("👥 顧店的人（排班時可以直接點選；排前面的顏色固定）","people"),b=ta("☀️ 開店檢查","openList"),c=ta("🌙 關店檢查","closeList"),d=ta("🛒 常叫貨的東西（交接時點選）","lowItems");
+  /* 打卡密碼：只存「加密後」的樣子，看不到原本的數字 */
+  const pinIns={};
+  p.append(el("div",{class:"fl",style:"margin-top:6px"},"⏰ 打卡密碼（4～8 位數字；留空＝不改）"));
+  cfg.people.forEach(n=>{const has=!!(cfg.pins||{})[n];const i=el("input",{type:"password",inputmode:"numeric",maxlength:"8",autocomplete:"new-password",placeholder:has?"已設定，要改才填":"還沒設定"});
+    const clr=el("input",{type:"checkbox"});pinIns[n]={i,clr};
+    p.append(el("div",{class:"row2",style:"align-items:center"},el("label",{class:"f"},n,i),has?el("label",{style:"font-size:13px;display:flex;gap:6px;align-items:center;margin-top:18px"},clr,"清除密碼"):el("span")))});
   const err=el("div",{class:"warn"});p.append(err);
   const sv=el("button",{class:"btn"},"儲存");
   sv.onclick=async()=>{const nv={people:lines(a.value).slice(0,20),openList:lines(b.value).slice(0,40),closeList:lines(c.value).slice(0,40),lowItems:lines(d.value).slice(0,60)};
     if(!nv.people.length){err.textContent="至少要有一個顧店的人。";return}
+    const pins={...(cfg.pins||{})};
+    for(const [n,{i,clr}] of Object.entries(pinIns)){const v=i.value.trim();
+      if(clr.checked){delete pins[n];continue}
+      if(v){if(!/^\d{4,8}$/.test(v)){err.textContent=n+" 的密碼要 4～8 位數字";i.focus();return}pins[n]=await pinHash(n,v)}}
+    nv.pins=pins;
     sv.disabled=true;try{await save(CF,"main",nv);closeSheet()}catch(e){sv.disabled=false;err.textContent="沒有存到，請再按一次。"}};
   p.append(el("div",{class:"foot"},el("span",{class:"sp"}),el("button",{class:"btn ghost",onclick:closeSheet},"取消"),sv));
 }
@@ -506,20 +666,23 @@ $("#m-prev").onclick=()=>{month.setMonth(month.getMonth()-1);renderCal()};
 $("#m-next").onclick=()=>{month.setMonth(month.getMonth()+1);renderCal()};
 $("#new-s").onclick=()=>shiftEditor(null);
 $("#new-h").onclick=()=>handEditor(null);
-function route(){const v=location.hash==="#handover"?"handover":location.hash==="#check"?"check":"shifts";
-  ["shifts","handover","check"].forEach(k=>{$("#v-"+k).hidden=k!==v;$("#t-"+k).setAttribute("aria-current",k===v?"page":"false")})}
+function route(){const v=location.hash==="#handover"?"handover":location.hash==="#check"?"check":location.hash==="#clock"?"clock":"shifts";
+  ["shifts","handover","check","clock"].forEach(k=>{$("#v-"+k).hidden=k!==v;$("#t-"+k).setAttribute("aria-current",k===v?"page":"false")});
+  if(v==="clock"&&me.email)runReport()}
 window.addEventListener("hashchange",route);route();
-const renderAll=()=>{renderNow();renderShifts();renderHands();renderChecks()};
+const renderAll=()=>{renderNow();renderShifts();renderHands();renderChecks();renderClock();fillWho()};
 
 $("#signin").onclick=async()=>{try{await au.signInWithPopup(auth,new au.GoogleAuthProvider())}catch(e){console.error(e);$("#login-msg").textContent=loginError(e)}};
 au.onAuthStateChanged(auth,u=>{
-  unsubs.forEach(f=>f());unsubs=[];shifts={};hands={};checks={};
+  unsubs.forEach(f=>f());unsubs=[];shifts={};hands={};checks={};punches={};
   if(!u){$("#login").hidden=false;$("#app").hidden=true;return}
   me={name:String(u.displayName||u.email||"").slice(0,30),email:u.email||""};
   $("#login").hidden=true;$("#app").hidden=false;
   $("#who").replaceChildren("登入：",u.email||"",el("button",{onclick:()=>au.signOut(auth)},"登出"));
   const denied=e=>{console.error(e);if(e.code==="permission-denied"){const m=$("#msg");m.replaceChildren("這個 Google 帳號還沒有權限看排班。",el("a",{href:"team.html",style:"color:var(--sea);font-weight:700"},"按這裡申請使用"),"，老闆娘同意後就能用。");m.hidden=false;$("#app").hidden=true}else sayMsg("暫時讀不到資料，請檢查網路後重新整理。")};
-  unsubs.push(fs.onSnapshot(ref(CF,"main"),s=>{const c=s.exists()?s.data():{};cfg={people:c.people&&c.people.length?c.people:DEF.people,openList:c.openList||DEF.openList,closeList:c.closeList||DEF.closeList,lowItems:c.lowItems||DEF.lowItems};renderAll()},denied));
+  unsubs.push(fs.onSnapshot(ref(CF,"main"),s=>{const c=s.exists()?s.data():{};cfg={people:c.people&&c.people.length?c.people:DEF.people,openList:c.openList||DEF.openList,closeList:c.closeList||DEF.closeList,lowItems:c.lowItems||DEF.lowItems,pins:c.pins||{}};renderAll()},denied));
+  unsubs.push(fs.onSnapshot(fs.query(fs.collection(fdb,PU),fs.where("date",">=",addDays(today(),-1))),s=>{punches={};s.forEach(d=>punches[d.id]=d.data());renderClock()},denied));
+  if(location.hash==="#clock")setTimeout(runReport,300);
   unsubs.push(fs.onSnapshot(fs.collection(fdb,SH),s=>{shifts={};s.forEach(d=>shifts[d.id]=d.data());sayMsg("");renderAll()},denied));
   unsubs.push(fs.onSnapshot(fs.collection(fdb,HO),s=>{hands={};s.forEach(d=>hands[d.id]=d.data());renderNow();renderHands()},denied));
   unsubs.push(fs.onSnapshot(fs.collection(fdb,CK),s=>{checks={};s.forEach(d=>checks[d.id]=d.data());renderHands();const a=document.activeElement;if(a&&a.closest&&a.closest("#moneycard"))ckPending=true;else renderChecks()},denied));
