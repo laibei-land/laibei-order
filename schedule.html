@@ -534,7 +534,7 @@ const stLabel={in:"上班中",brk:"休息中",out:"還沒上班"};
 function renderClock(){
   const box=$("#ck-people");box.replaceChildren();
   cfg.people.forEach(name=>{const s=stateOf(name);
-    box.append(el("button",{class:"pbtn "+s.st,onclick:()=>openPunch(name)},el("b",{},name),el("span",{},stLabel[s.st]+(s.last?"・"+hm(s.last.at):""))))});
+    box.append(el("button",{class:"pbtn "+s.st,onclick:()=>openPunch(name)},el("b",{},name),el("span",{},(s.st==="out"&&s.last?"已下班":stLabel[s.st])+(s.last?"・"+hm(s.last.at):""))))});
   $("#ck-clock").textContent=hm(Date.now());
 }
 setInterval(()=>{const c=$("#ck-clock");if(c)c.textContent=hm(Date.now())},10000);
@@ -681,7 +681,7 @@ au.onAuthStateChanged(auth,u=>{
   $("#who").replaceChildren("登入：",u.email||"",el("button",{onclick:()=>au.signOut(auth)},"登出"));
   const denied=e=>{console.error(e);if(e.code==="permission-denied"){const m=$("#msg");m.replaceChildren("這個 Google 帳號還沒有權限看排班。",el("a",{href:"team.html",style:"color:var(--sea);font-weight:700"},"按這裡申請使用"),"，老闆娘同意後就能用。");m.hidden=false;$("#app").hidden=true}else sayMsg("暫時讀不到資料，請檢查網路後重新整理。")};
   unsubs.push(fs.onSnapshot(ref(CF,"main"),s=>{const c=s.exists()?s.data():{};cfg={people:c.people&&c.people.length?c.people:DEF.people,openList:c.openList||DEF.openList,closeList:c.closeList||DEF.closeList,lowItems:c.lowItems||DEF.lowItems,pins:c.pins||{}};renderAll()},denied));
-  unsubs.push(fs.onSnapshot(fs.query(fs.collection(fdb,PU),fs.where("date",">=",addDays(today(),-1))),s=>{punches={};s.forEach(d=>punches[d.id]=d.data());renderClock()},denied));
+  unsubs.push(fs.onSnapshot(fs.query(fs.collection(fdb,PU),fs.where("date",">=",addDays(today(),-1))),s=>{punches={};s.forEach(d=>punches[d.id]=d.data());renderClock();if(!$("#v-clock").hidden)runReport()},denied));
   if(location.hash==="#clock")setTimeout(runReport,300);
   unsubs.push(fs.onSnapshot(fs.collection(fdb,SH),s=>{shifts={};s.forEach(d=>shifts[d.id]=d.data());sayMsg("");renderAll()},denied));
   unsubs.push(fs.onSnapshot(fs.collection(fdb,HO),s=>{hands={};s.forEach(d=>hands[d.id]=d.data());renderNow();renderHands()},denied));
